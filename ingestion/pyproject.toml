@@ -11,6 +11,7 @@ dependencies = [
     "pixeltable>=0.3.10",
     "spacy>=3.8.5",
     "torch>=2.6.0",
+    "transformers>=4.51.1",
     "yt-dlp>=2025.3.31",
 ]
 
