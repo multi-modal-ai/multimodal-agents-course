@@ -1,63 +1,63 @@
-import pixeltable as pxt
-from pixeltable.functions import whisper
-from pixeltable.functions.audio import get_metadata
-from pixeltable.functions.video import make_video
-from pixeltable.iterators import FrameIterator
-from transformers import BlipForConditionalGeneration, BlipProcessor
-
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
+import os
+import subprocess
+import tempfile
 
 
-@pxt.udf
-def caption_frame(image_frame: pxt.type_system.Image) -> str:
-    _pretext = "a photography of"
-    inputs = processor(image_frame, _pretext, return_tensors="pt")
-    out = model.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
+def split_video_to_chunks_subprocess(video_path, chunk_duration=60):
+    """
+    Splits a long video into chunks of specified duration using ffmpeg as a subprocess
+    and saves them in a temporary directory.
 
-    return caption
+    Args:
+        video_path (str): The path to the input video file.
+        chunk_duration (int): The duration of each chunk in seconds (default is 60 seconds).
 
+    Returns:
+        str: The path to the temporary directory where the video chunks are saved.
+             Returns None if an error occurs.
+    """
+    try:
+        probe_command = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ]
+        process = subprocess.run(probe_command, capture_output=True, text=True, check=True)
+        duration = float(process.stdout.strip())
+        num_segments = int(duration // chunk_duration) + (1 if duration % chunk_duration > 0 else 0)
 
-if __name__ == "__main__":
-    video_clips = (
-        "/Users/razvantalexandru/Documents/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/clip_000.mp4",
-        "/Users/razvantalexandru/Documents/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/clip_001.mp4",
-        "/Users/razvantalexandru/Documents/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/clip_002.mp4",
-        "/Users/razvantalexandru/Documents/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/clip_003.mp4",
-        "/Users/razvantalexandru/Documents/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/clip_004.mp4",
-    )
+        temp_dir = tempfile.mkdtemp(prefix="video_chunks_ffmpeg_sub_")
 
-    pxt.drop_dir("mm_agent_poc", force=True)
-    pxt.create_dir("mm_agent_poc")
+        for i in range(num_segments):
+            start_time = i * chunk_duration
+            output_file = os.path.join(temp_dir, f"chunk_{i:03d}.mp4")
+            ffmpeg_command = [
+                "ffmpeg",
+                "-i",
+                video_path,
+                "-ss",
+                str(start_time),
+                "-t",
+                str(chunk_duration),
+                "-c",
+                "copy",  # Use 'copy' for faster re-muxing if possible
+                output_file,
+            ]
+            subprocess.run(ffmpeg_command, check=True, capture_output=True)
 
-    video_table = pxt.create_table(
-        "mm_agent_poc.videos",
-        {
-            "video": pxt.Video,
-            # "frames": pxt.Array(pxt.Image),
-            # "captions": pxt.Array(pxt.String),
-            # "audio": pxt.Audio,
-            # "transcription": pxt.String,
-            # "sentences": pxt.Array(pxt.String),
-        },
-    )
-    video_table.insert([{"video": video_clips[0]}])
+        return temp_dir
 
-    frames_view = pxt.create_view(
-        "frames",
-        video_table,
-        iterator=FrameIterator.create(video=video_table.video, num_frames=2),
-    )
-
-    frames_view.select(frames_view.frame, caption_frame(frames_view.frame)).as_dict()
-
-    frames_view.add_computed_column(
-        caption=caption_frame(image_frame=frames_view.frame),
-    )
-
-    # video_table.add_computed_column(audio=extract_audio(video_table.video, format="mp3"), if_exists="ignore")
-    # video_table.add_computed_column(transcription=whisper.transcribe(audio=video_table.audio, model="base.en"))
-    # video_table.add_computed_column(metadata=get_metadata(video_table.audio))
-
-    video_table.describe()
+    except subprocess.CalledProcessError as e:
+        print(f"Error running ffmpeg: {e.stderr.decode('utf8')}")
+        return None
+    except FileNotFoundError:
+        print("Error: ffmpeg or ffprobe not found. Make sure they are installed and in your system's PATH.")
+        return None
+    except ValueError:
+        print("Error: Could not parse video duration.")
+        return None
