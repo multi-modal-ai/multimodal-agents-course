@@ -1,21 +1,14 @@
 import os
 import subprocess
-import tempfile
+from pathlib import Path
 
 
-def split_video_to_chunks_subprocess(video_path, chunk_duration=60):
-    """
-    Splits a long video into chunks of specified duration using ffmpeg as a subprocess
-    and saves them in a temporary directory.
-
-    Args:
-        video_path (str): The path to the input video file.
-        chunk_duration (int): The duration of each chunk in seconds (default is 60 seconds).
-
-    Returns:
-        str: The path to the temporary directory where the video chunks are saved.
-             Returns None if an error occurs.
-    """
+def split_video_to_chunks_subprocess(
+    video_path: Path,
+    chunk_duration=60,
+    cache_path: Path = Path(os.getcwd()) / ".cache/tmp",
+):
+    # Add docs to this func, currently splits in 1min chunks
     try:
         probe_command = [
             "ffprobe",
@@ -30,12 +23,18 @@ def split_video_to_chunks_subprocess(video_path, chunk_duration=60):
         process = subprocess.run(probe_command, capture_output=True, text=True, check=True)
         duration = float(process.stdout.strip())
         num_segments = int(duration // chunk_duration) + (1 if duration % chunk_duration > 0 else 0)
+        cache_path = Path(cache_path) / f"video_chunks_ffmpeg_splits{chunk_duration}_{video_path.stem}"
 
-        temp_dir = tempfile.mkdtemp(prefix="video_chunks_ffmpeg_sub_")
+        if cache_path.exists():
+            return cache_path
+        cache_path.mkdir(parents=True, exist_ok=True)
 
         for i in range(num_segments):
             start_time = i * chunk_duration
-            output_file = os.path.join(temp_dir, f"chunk_{i:03d}.mp4")
+            output_file = os.path.join(cache_path, f"chunk_{i:03d}.mp4")
+            # NOTE:
+            # this is equiv to ffmpeg -i video.mp4 -ss 00:00:00 -t 00:01:00 -c copy output.mp4
+            # -c copy does faster re-encoding than inline as it copies channel only
             ffmpeg_command = [
                 "ffmpeg",
                 "-i",
@@ -44,14 +43,16 @@ def split_video_to_chunks_subprocess(video_path, chunk_duration=60):
                 str(start_time),
                 "-t",
                 str(chunk_duration),
+                "-avoid_negative_ts",
+                "make_zero",
                 "-c",
-                "copy",  # Use 'copy' for faster re-muxing if possible
+                "copy",
                 output_file,
             ]
             subprocess.run(ffmpeg_command, check=True, capture_output=True)
+        return cache_path
 
-        return temp_dir
-
+    # FIXME: solve prints to logger
     except subprocess.CalledProcessError as e:
         print(f"Error running ffmpeg: {e.stderr.decode('utf8')}")
         return None
@@ -61,3 +62,9 @@ def split_video_to_chunks_subprocess(video_path, chunk_duration=60):
     except ValueError:
         print("Error: Could not parse video duration.")
         return None
+
+
+if __name__ == "__main__":
+    video_path = "/home/razvantalexandru/Documents/Projects/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/2018_portugal_vs_spain_T0h0m_0h5m.mp4"
+    cache_path = "/home/razvantalexandru/Documents/Projects/NeuralBits/multimodal-agents-course/.cache/"
+    split_video_to_chunks_subprocess(video_path=Path(video_path), chunk_duration=60, cache_path=cache_path)

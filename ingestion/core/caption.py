@@ -1,4 +1,5 @@
-import time
+import os
+from enum import Enum
 from pathlib import Path
 from typing import Any, List, Tuple
 
@@ -14,11 +15,22 @@ from services.perception_models.apps.plm.generate import (
     load_consolidated_model_and_tokenizer,
 )
 
-# TEMPORARY
-# move to server ?
+
+class CaptionModelType(str, Enum):
+    PLM_1B = "perception-lm-1b"
+    PLM_3B = "perception-lm-3b"
+    FLORENCE = "florence-vlm"
 
 
-class CaptioningModel:
+DEFAULT_MODEL_CHECKPOINTS_DIR = Path(os.getcwd()) / "services/checkpoints"
+
+DEFAULT_MODEL_REGISTRY = {
+    CaptionModelType.PLM_1B: "facebook/Perception-LM-1B",
+    CaptionModelType.PLM_3B: "facebook/Perception-LM-3B",
+}
+
+
+class DeprecatedCaptioningModel:
     def __init__(self, device: str = "cuda", pretext: str = "a photography of"):
         self._model_tag = "Salesforce/blip-image-captioning-base"
         self._device = device
@@ -40,13 +52,11 @@ class CaptioningModel:
 
 
 class VisualCaptioningModel:
-    def __init__(self, device: str = "cuda"):
-        self._model_tag = "facebook/Perception-LM-3B"
-        self.model_dir = (
-            Path("/home/razvantalexandru/Documents/Projects/NeuralBits/multimodal-agents-course/services/checkpoints")
-            / self._model_tag
-        )
+    def __init__(self, device: str = "cuda", model_tag: CaptionModelType = None):
+        self._model_tag = model_tag if model_tag else CaptionModelType.PLM_1B
+        self.model_dir = DEFAULT_MODEL_CHECKPOINTS_DIR / DEFAULT_MODEL_REGISTRY.get(self._model_tag)
         self._device = device
+
         model, tokenizer, config = load_consolidated_model_and_tokenizer(self.model_dir)
 
         self.image_transform = get_image_transform(
