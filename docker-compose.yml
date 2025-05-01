@@ -1,0 +1,17 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.chainlit
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api

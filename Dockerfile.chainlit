@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set the working directory
+WORKDIR /app
+
+# Install application dependencies
+COPY uv.lock pyproject.toml README.md ./
+RUN uv sync --frozen --no-cache
+
+# Copy the application into the container
+COPY ui/app.py ./
+
+# Run the FastAPI application using uvicorn
+CMD ["/app/.venv/bin/streamlit", "run", "app.py"]

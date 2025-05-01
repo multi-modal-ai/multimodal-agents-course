@@ -1,0 +1,27 @@
+[project]
+name = "multimodal-agents-course"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "ipykernel>=6.29.5",
+    "loguru>=0.7.3",
+    "openai>=1.76.0",
+    "opik>=1.7.11",
+    "pixeltable>=0.3.12",
+    "pydantic-settings>=2.9.1",
+    "streamlit>=1.44.1",
+    "uvicorn>=0.34.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sport_assistant"]
+
+[tool.ruff]
+target-version = "py312"
