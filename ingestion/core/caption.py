@@ -18,10 +18,12 @@ DEFAULT_MODEL_REGISTRY = {
 
 
 def solve_device(device: str) -> str:
-    if device == "cuda":
-        return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    elif device == "mps":
-        return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    if device == "cuda" and torch.cuda.is_available():
+        return torch.device("cuda")
+    elif device == "mps" and torch.backends.mps.is_available():
+        return torch.device("mps")
+    else:
+        return torch.device("cpu")
 
 
 class VisualCaptioningModel:
