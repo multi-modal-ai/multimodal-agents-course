@@ -3,8 +3,7 @@ from pathlib import Path
 import pixeltable as pxt
 from core.caption import VisualCaptioningModel
 
-# TODO: make this work on CPU, ARM/X64
-video_captioner = VisualCaptioningModel(device="cuda")
+video_captioner = VisualCaptioningModel(device="mps")
 
 
 @pxt.udf

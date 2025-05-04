@@ -1,67 +1,79 @@
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, List, Tuple
 
-from PIL.Image import Image
-from transformers import BlipForConditionalGeneration, BlipProcessor
-
-from services.perception_models.apps.plm.generate import (
-    PackedCausalTransformerGenerator,
-    PackedCausalTransformerGeneratorArgs,
-    dataclass_from_dict,
-    get_image_transform,
-    get_video_transform,
-    load_consolidated_model_and_tokenizer,
-)
+import torch
+from qwen_vl_utils import process_vision_info
+from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
 
 class CaptionModelType(str, Enum):
-    PLM_1B = "perception-lm-1b"
-    PLM_3B = "perception-lm-3b"
-    FLORENCE = "florence-vlm"
+    Qwen25_3B = "QwenVL2.5-3B"
 
 
-DEFAULT_MODEL_CHECKPOINTS_DIR = Path(os.getcwd()) / "services/checkpoints"
-
+DEFAULT_MODEL_CHECKPOINTS_DIR = Path(os.getcwd()) / "checkpoints"
 DEFAULT_MODEL_REGISTRY = {
-    CaptionModelType.PLM_1B: "facebook/Perception-LM-1B",
-    CaptionModelType.PLM_3B: "facebook/Perception-LM-3B",
+    CaptionModelType.Qwen25_3B: "Qwen2.5-VL-3B-Instruct",
 }
+
+
+def solve_device(device: str) -> str:
+    if device == "cuda":
+        return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    elif device == "mps":
+        return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
 class VisualCaptioningModel:
     def __init__(self, device: str = "cuda", model_tag: CaptionModelType = None):
         self._model_tag = model_tag if model_tag else CaptionModelType.PLM_1B
         self.model_dir = DEFAULT_MODEL_CHECKPOINTS_DIR / DEFAULT_MODEL_REGISTRY.get(self._model_tag)
-        self._device = device
+        self._device = solve_device(device)
 
-        model, tokenizer, config = load_consolidated_model_and_tokenizer(self.model_dir)
-
-        self.image_transform = get_image_transform(
-            vision_input_type=config.data.vision_input_type,
-            image_res=model.vision_model.image_size,
-            max_num_tiles=config.data.max_num_tiles,
+        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            self._model_tag, torch_dtype=torch.bfloat16, device_map="auto", pretrained_model_name_or_path=self.model_dir
         )
 
-        self.video_transform = get_video_transform(image_res=model.vision_model.image_size)
-        self.max_frames = config.data.max_video_frames
+        self.processor = AutoProcessor.from_pretrained(self._model_tag, pretrained_model_name_or_path=self.model_dir)
 
-        generation_cfg = dataclass_from_dict(PackedCausalTransformerGeneratorArgs, {}, strict=False)
-        self.generator = PackedCausalTransformerGenerator(generation_cfg, model, tokenizer)
+    def preprocess_video(self, clip_path: Path, prompt: str) -> torch.Tensor:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "video",
+                        "video": f"{str(clip_path)}",
+                        "max_pixels": 360 * 420,
+                        "fps": 1.0,
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
 
-    def preprocess_image(self, frames_set: List[Image], prompt: str):
-        images = [self.image_transform(image)[0] for image in frames_set]
-        return [(prompt, images)]
+        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, video_inputs, video_kwargs = process_vision_info(messages, return_video_kwargs=True)
+        inputs: torch.Tensor = self.processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            fps=1,
+            padding=True,
+            return_tensors="pt",
+            **video_kwargs,
+        )
+        inputs = inputs.to(self.device)
+        return inputs
 
-    def preprocess_video(self, video_path: Path, prompt: str):
-        video_info = (video_path, self.max_frames, None, None, None)
-        frames, _ = self.video_transform(video_info)
-        return [(prompt, frames)]
+    def infer(self, inputs: torch.Tensor, max_new_tokens: int, skip_special_tokens: bool = True) -> str:
+        generated_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
+        generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]
+        output_text = self.processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=skip_special_tokens, clean_up_tokenization_spaces=False
+        )
 
-    def __call__(self, inputs: List[Tuple[Any, str]]) -> str:
-        generation, loglikelihood, greedy = self.generator.generate(inputs)
-        return generation
+        return output_text
 
     def __repr__(self):
         return f"VideoCaptionModel(model_tag={self._model_tag}, device={self.device})"

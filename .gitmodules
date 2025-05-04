@@ -1,3 +1,6 @@
 [submodule "services/perception_models"]
 	path = services/perception_models
 	url = https://github.com/facebookresearch/perception_models.git
+[submodule "services/checkpoints/Qwen/Qwen2.5-VL-3B-Instruct"]
+	path = services/checkpoints/Qwen/Qwen2.5-VL-3B-Instruct
+	url = https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct

@@ -1,9 +1,8 @@
-from sport_assistant.core.agent.openai import Agent
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from sport_assistant.core.agent.openai import Agent
 from sport_assistant.core.prompts import SPORT_ASSISTANT_SYSTEM_PROMPT
-
 
 app = FastAPI(
     title="Sport Assistant API",
@@ -17,6 +16,7 @@ app = FastAPI(
 # Pydantic models for request/response validation
 class ChatRequest(BaseModel):
     message: str
+
 
 class ChatResponse(BaseModel):
     response: str
@@ -55,7 +55,7 @@ def chat(request: ChatRequest):
         return ChatResponse(response=response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 
 if __name__ == "__main__":
     import uvicorn
