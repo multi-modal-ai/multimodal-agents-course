@@ -6,8 +6,16 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "accelerate>=1.6.0",
+    "fastmcp>=2.2.7",
+    "loguru>=0.7.3",
+    "numpy==1.26.4",
+    "openai>=1.77.0",
+    "openai-whisper>=20240930",
+    "pip>=25.1.1",
     "pixeltable>=0.3.12",
     "qwen-vl-utils>=0.0.11",
+    "sentence-transformers>=4.1.0",
+    "spacy>=3.8.5",
     "torch>=2.7.0",
     "transformers>=4.51.3",
 ]

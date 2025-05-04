@@ -13,7 +13,6 @@ def create_messages(
     current_message: str,
     image: Optional[PIL.Image.Image] = None,
 ) -> list[dict]:
-
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(memory_context.copy())
 
