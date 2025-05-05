@@ -1,3 +1,4 @@
+import uuid
 from typing import Optional
 
 import av
@@ -6,7 +7,7 @@ import pandas as pd
 from PIL import Image
 
 
-def create_video_from_dataframe(df: pd.DataFrame, output_path: str, fps: int = 25, frame_column: str = "frame"):
+def create_video_from_dataframe(df: pd.DataFrame, output_path: str, fps: int = 10):
     """
     Creates a video from a DataFrame where each row contains a PIL Image
     in the specified 'frame_column'.
@@ -24,9 +25,9 @@ def create_video_from_dataframe(df: pd.DataFrame, output_path: str, fps: int = 2
         if df.empty:
             return
 
-        first_frame: Image.Image = df.iloc[0][frame_column]
+        first_frame: Image.Image = df.iloc[0]["frame"]
         height, width = first_frame.height, first_frame.width
-
+        output_path = output_path / uuid.uuid4().hex / "clip.mp4"
         container = av.open(output_path, mode="w")
         stream = container.add_stream("h264", rate=fps)
         stream.pix_fmt = "yuv420p"
@@ -34,7 +35,7 @@ def create_video_from_dataframe(df: pd.DataFrame, output_path: str, fps: int = 2
         stream.height = height
 
         for _, row in df.iterrows():
-            frame: Image.Image = row[frame_column]
+            frame: Image.Image = row["frame"]
             if frame:
                 av_frame = av.VideoFrame.from_ndarray(np.array(frame.convert("RGB")), format="rgb24")
                 for packet in stream.encode(av_frame):

@@ -1,13 +1,9 @@
-import glob
-import os
-from pathlib import Path
-from typing import List, Tuple
+from typing import Dict
 from uuid import uuid4
 
 import pixeltable as pxt
-import utils
-from core.splitter import split_video_to_chunks_subprocess
 from loguru import logger
+from models import CachedTable, CachedTableMetadata
 from pixeltable.functions import whisper
 from pixeltable.functions.huggingface import sentence_transformer
 from pixeltable.functions.video import extract_audio
@@ -17,14 +13,75 @@ from pixeltable.iterators.video import FrameIterator
 
 logger = logger.bind(name="VideoProcessor")
 
-DEFAULT_TMP_PATH = Path(os.getcwd()) / "/.cache/tmp"
-VIDEO_INDEXES_REGISTRY = {}
+VIDEO_INDEXES_REGISTRY: Dict[str, CachedTableMetadata] = {}
+
+
+def get_registry() -> Dict[str, CachedTableMetadata]:
+    """
+    Get the global video index registry.
+
+    Returns:
+        Dict[str, CachedTableMetadata]: The video index registry.
+    """
+    return VIDEO_INDEXES_REGISTRY
+
+
+def add_index_to_registry(
+    video_name: str,
+    video_cache: str,
+    video_table_name: str,
+    frames_view_name: str,
+    sentences_view_name: str,
+    semantics_index_name: str,
+):
+    """
+    Register a video index in the global registry.
+
+    Args:
+        video_path (str): The path to the video file.
+        video_name (str): The name of the video.
+        video_cache (str): The cache path for the video.
+        video_table_name (str): The name of the video table.
+        frames_view_name (str): The name of the frames view.
+        sentences_view_name (str): The name of the sentences view.
+        semantics_index_name (str): The name of the semantics index.
+
+    """
+    global VIDEO_INDEXES_REGISTRY
+    VIDEO_INDEXES_REGISTRY[video_name] = {
+        video_name: CachedTableMetadata(
+            video_cache=video_cache,
+            video_table=video_table_name,
+            frames_view=frames_view_name,
+            sentences_view=sentences_view_name,
+            semantics_index=semantics_index_name,
+        )
+    }
+
+
+def get_table(video_name: str) -> Dict[str, CachedTable]:
+    """
+    Get the global video index registry.
+
+    Returns:
+        Dict[str, CachedTable]: The video index registry.
+    """
+    metadata = VIDEO_INDEXES_REGISTRY.get(video_name)
+    return CachedTable().from_metadata(metadata)
 
 
 class VideoProcessor:
-    def __init__(self, pxt_cache: str = "poc", table_name: str = None, videos_cache: Path = DEFAULT_TMP_PATH):
-        self.pxt_cache = pxt_cache
-        self.videos_cache = videos_cache
+    def __init__(self, video_clip_length: int = 60, split_fps: float = 1.0, audio_chunk_length: float = 30):
+        self.clip_len = video_clip_length
+        self.split_fps = split_fps
+        self.audio_chunk_length = audio_chunk_length
+
+        logger.info(
+            f"VideoProcessor initialized with clip length: {self.clip_len}, split fps: {self.split_fps}, audio chunk length: {self.audio_chunk_length}"
+        )
+
+    def setup_table(self, cache: str, table_name: str):
+        self.pxt_cache = cache
 
         self.table_name = table_name if table_name else uuid4().hex
 
@@ -37,7 +94,7 @@ class VideoProcessor:
 
         if not self._check_if_exists():
             logger.info(f"Creating new video index '{self.table_name}' in '{self.pxt_cache}'")
-            self._create_pxtable()
+            self._create_table()
         else:
             logger.info(f"Video index '{self.full_table_name}' already exists and is ready for use.")
 
@@ -49,25 +106,23 @@ class VideoProcessor:
             bool: True if all components exist, False otherwise.
         """
         existing_tables = pxt.list_tables()
-        if self.full_table_name in existing_tables:
+        if self.full_table_name not in existing_tables:
             try:
-                video_table = pxt.get_table(self.full_table_name)
-                frames_view = pxt.get_table(self.frames_view_name)
-                sentences_view = pxt.get_table(self.sentences_view_name)
-                semantics_index = pxt.get_table(self.semantics_index_name)
-                VIDEO_INDEXES_REGISTRY[self.full_table_name] = (
-                    video_table,
-                    frames_view,
-                    sentences_view,
-                    semantics_index,
+                add_index_to_registry(
+                    video_name=self.table_name,
+                    video_cache=self.pxt_cache,
+                    video_table_name=self.full_table_name,
+                    frames_view_name=self.frames_view_name,
+                    sentences_view_name=self.sentences_view_name,
+                    semantics_index_name=self.semantics_index_name,
                 )
-                return True
+                return False
             except Exception as e:
                 logger.warning(f"Error while accessing existing video index '{self.full_table_name}': {e}")
                 return False
-        return False
+        return True
 
-    def _create_pxtable(self):
+    def _create_table(self):
         pxt.drop_dir(self.pxt_cache, force=True)
         pxt.create_dir(self.pxt_cache, if_exists="ignore")
 
@@ -132,55 +187,15 @@ class VideoProcessor:
             if_exists="ignore",
         )
 
-    def preprocess_video(self, video_path, chunk_duration: int) -> Tuple[str, List[str]]:
-        vpath = Path(video_path)
-        assert vpath.exists(), f"Video could not be found {video_path}"
-
-        if Path(self.videos_cache).exists():
-            clips_cache = self.videos_cache
-        clips_cache = split_video_to_chunks_subprocess(
-            video_path=vpath, chunk_duration=chunk_duration, cache_path=self.videos_cache
-        )
-        video_files = glob.glob(str(clips_cache) + "/*.mp4")
-        video_files.sort()
-
-        return clips_cache, video_files
-
     def add_video(self, video_path: str):
-        self.video_table.insert([{"video": video_path, "uploaded_at": pxt.now()}])
+        """
+        Add a video to the pixel table.
 
-    def get_video_clip(self, user_query: str, top_k: int) -> Path:
-        sims = self.sentences_view.text.similarity(user_query)
-        results_df = (
-            self.sentences_view.select(
-                self.sentences_view.pos,
-                self.sentences_view.start_time_sec,
-                self.sentences_view.end_time_sec,
-                similarity=sims,
-            )
-            .order_by(sims, asc=False)
-            .limit(top_k)
-            .collect()
-            .to_pandas()
-        )
+        Args:
+            video_path (str): The path to the video file.
+        """
+        if not self.video_table:
+            raise ValueError("Video table is not initialized. Call setup_table() first.")
 
-        best_entry_index = results_df["similarity"].idxmax()
-        best_start_time = results_df.loc[best_entry_index, "start_time_sec"]
-        best_end_time = results_df.loc[best_entry_index, "end_time_sec"]
-
-        frames = (
-            self.frames_view.select(
-                self.frames_view.frame,
-            )
-            .where(
-                (self.frames_view.pos_msec >= best_start_time * 1e3)
-                & (self.frames_view.pos_msec <= best_end_time * 1e3)
-            )
-            .order_by(self.frames_view.frame_idx)
-        )
-
-        video_path = utils.create_video_from_dataframe(
-            frames, self.videos_cache / f"{self.table_name}_{uuid4().hex}.mp4"
-        )
-
-        return video_path
+        logger.info(f"Adding video {video_path} to table {self.full_table_name}")
+        self.video_table.insert([{"video": video_path}])

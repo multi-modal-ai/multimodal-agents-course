@@ -1,6 +1,9 @@
+import glob
 import os
 import subprocess
+import uuid
 from pathlib import Path
+from typing import List
 
 
 def split_video_to_chunks_subprocess(
@@ -64,7 +67,35 @@ def split_video_to_chunks_subprocess(
         return None
 
 
-if __name__ == "__main__":
-    video_path = "data/long_video/2018_portugal_vs_spain_T0h0m_0h5m.mp4"
-    cache_path = ".cache/"
-    split_video_to_chunks_subprocess(video_path=Path(video_path), chunk_duration=60, cache_path=cache_path)
+def _preprocess_video(
+    video_path: str,
+    chunk_duration: int = 60,
+    videos_cache: str = ".cache",
+) -> List[Path]:
+    """Preprocess the video and split it into chunks.
+
+    Args:
+        video_path: The path to the video file.
+        chunk_duration: The duration of each chunk in seconds.
+        videos_cache: The cache directory for videos.
+
+    Returns:
+        A tuple containing the cache path and a list of video clips.
+    """
+    _cache_path = uuid.uuid4().hex
+    vpath = Path(video_path)
+    assert vpath.exists(), f"Video could not be found {video_path}"
+
+    video_segments_cache = split_video_to_chunks_subprocess(
+        video_path=vpath,
+        chunk_duration=chunk_duration,
+        cache_path=f"{videos_cache}/{_cache_path}",
+    )
+
+    video_files = glob.glob(f"{str(video_segments_cache)}/*.mp4")
+    video_files.sort()
+    video_files = [Path(file) for file in video_files]
+    return video_files
+
+
+__all__ = ["split_video_to_chunks_subprocess", "_preprocess_video"]
