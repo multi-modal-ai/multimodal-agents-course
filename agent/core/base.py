@@ -6,16 +6,15 @@ from uuid import uuid4
 import opik
 import pixeltable as pxt
 from PIL import Image
-
 from sport_assistant.config import settings
 
 
 class BaseAgent(ABC):
     """
-    An Base agent powered by LLM model with persistent memory and tool execution 
+    An Base agent powered by LLM model with persistent memory and tool execution
     capabilities.
 
-    This base agent gets inherited by other agent classes 
+    This base agent gets inherited by other agent classes
     (see pixelagent/anthropic/agent.py and pixelagent/anthropic/agent.py).
 
     The agent maintains three key tables in Pixeltable:
@@ -75,9 +74,7 @@ class BaseAgent(ABC):
         # Get references to the created tables
         self.memory = pxt.get_table(f"{self.directory}.memory")
         self.agent = pxt.get_table(f"{self.directory}.agent")
-        self.tools_table = (
-            pxt.get_table(f"{self.directory}.tools") if self.tools else None
-        )
+        self.tools_table = pxt.get_table(f"{self.directory}.tools") if self.tools else None
 
     def _setup_tables(self):
         """
@@ -169,11 +166,7 @@ class BaseAgent(ABC):
         )
 
         # Get LLM's response from agent table
-        result = (
-            self.agent.select(self.agent.agent_response)
-            .where(self.agent.message_id == user_message_id)
-            .collect()
-        )
+        result = self.agent.select(self.agent.agent_response).where(self.agent.message_id == user_message_id).collect()
         response = result["agent_response"][0]
 
         # Store LLM's response in memory

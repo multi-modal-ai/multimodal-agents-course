@@ -1,14 +1,12 @@
 from typing import Optional
 
 import pixeltable as pxt
-
-from sport_assistant.core.agent.base import BaseAgent
-
-from sport_assistant.core.agent.openai.utils import create_messages
+from core.base import BaseAgent
+from utils import functions, queries
 
 try:
     from pixeltable.functions.openai import chat_completions
-except ImportError: 
+except ImportError:
     raise ImportError("openai not found; run `pip install openai`")
 
 
@@ -60,44 +58,29 @@ class Agent(BaseAgent):
         """
 
         # Step 1: Define a query to get recent messages
-        @pxt.query
-        def get_recent_memory(current_timestamp: pxt.Timestamp) -> list[dict]:
-            """
-            Get recent messages from memory, respecting n_latest_messages limit if set.
-            Messages are ordered by timestamp (newest first).
-            """
-            query = (
-                self.memory.where(self.memory.timestamp < current_timestamp)
-                .order_by(self.memory.timestamp, asc=False)
-                .select(role=self.memory.role, content=self.memory.content)
-            )
-            if self.n_latest_messages is not None:
-                query = query.limit(self.n_latest_messages)
-            return query
 
         # Step 2: Add computed columns to process the conversation
         # First, get the conversation history
         self.agent.add_computed_column(
-            memory_context=get_recent_memory(self.agent.timestamp),
+            memory_context=queries.get_recent_memory(
+                self.agent.timestamp, self.agent.memory_table, self.n_latest_messages
+            ),
             if_exists="ignore",
         )
 
         # Format messages for OpenAI with system prompt
         self.agent.add_computed_column(
-            prompt=create_messages(
+            prompt=functions.create_messages_text(
                 self.agent.system_prompt,
                 self.agent.memory_context,
                 self.agent.user_message,
-                self.agent.image,
             ),
             if_exists="ignore",
         )
 
         # Get OpenAI's API response
         self.agent.add_computed_column(
-            response=chat_completions(
-                messages=self.agent.prompt, model=self.model, **self.chat_kwargs
-            ),
+            response=chat_completions(messages=self.agent.prompt, model=self.model, **self.chat_kwargs),
             if_exists="ignore",
         )
 
@@ -106,4 +89,3 @@ class Agent(BaseAgent):
             agent_response=self.agent.response.choices[0].message.content,
             if_exists="ignore",
         )
-
