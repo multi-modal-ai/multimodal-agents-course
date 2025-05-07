@@ -28,7 +28,7 @@ app.add_api_route(
 app.add_api_route(
     "/fetch_clip",
     get_clips,
-    methods=["GET"],
+    methods=["POST"],
     description="Fetch a video clip based on a user query.",
 )
 

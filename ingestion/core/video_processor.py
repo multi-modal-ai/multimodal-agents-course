@@ -2,8 +2,8 @@ from typing import Dict
 from uuid import uuid4
 
 import pixeltable as pxt
+from core.models import CachedTable, CachedTableMetadata
 from loguru import logger
-from models import CachedTable, CachedTableMetadata
 from pixeltable.functions import whisper
 from pixeltable.functions.huggingface import sentence_transformer
 from pixeltable.functions.video import extract_audio

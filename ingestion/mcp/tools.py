@@ -1,23 +1,13 @@
 import uuid
 
 import tqdm
-from core import splitter
+from core import splitter, tools
 from core.models import CachedTable
 from core.video_processor import VideoProcessor, get_registry, get_table
-from fastmcp import FastMCP
-
-from ingestion.core import tools
 
 video_processor = VideoProcessor(video_clip_length=60, split_fps=1.0, audio_chunk_length=30)
 
-mcp = FastMCP("VideoProcessor")
 
-
-@mcp.tool(
-    name="add_video",
-    description="Add a new video to database.",
-    tags=["video", "ingestion"],
-)
 def add_video(video_name: str) -> None:
     """Add a video to the pixel table.
 
@@ -37,11 +27,6 @@ def add_video(video_name: str) -> None:
         video_processor.add_video(video_clip)
 
 
-@mcp.tool(
-    name="fetch_clip",
-    description="Fetch a video clip based on a user query.",
-    tags=["video", "query"],
-)
 def get_clips(video_name: str, user_query: str, top_k: int = 1) -> str:
     """Get a video clip based on the user query.
 
@@ -89,11 +74,6 @@ def get_clips(video_name: str, user_query: str, top_k: int = 1) -> str:
     return clip_path
 
 
-@mcp.tool(
-    name="list_videos",
-    description="List all processed videos in database.",
-    tags=["video", "list"],
-)
 def list_tables() -> str:
     """List all video indexes currently available.
 

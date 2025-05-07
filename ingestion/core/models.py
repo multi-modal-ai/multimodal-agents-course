@@ -12,7 +12,7 @@ class CachedTableMetadata(BaseModel):
     semantics_index: str = Field(..., description="Embedding index for the sentences")
 
 
-class CachedTable(BaseModel):
+class CachedTable:
     video_cache: str = Field(..., description="Path to the video cache")
     video_table: pxt.Table = Field(..., description="Root video table")
     frames_view: pxt.Table = Field(..., description="Video frames which were split using a FPS and frame iterator")
