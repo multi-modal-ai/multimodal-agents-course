@@ -15,3 +15,4 @@ def get_recent_memory(current_timestamp: pxt.Timestamp, memory_table: pxt.Table,
     if history_len is not None:
         query = query.limit(history_len)
     return query
+

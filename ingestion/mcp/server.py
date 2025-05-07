@@ -1,32 +1,40 @@
+import os
+
+from fastapi import FastAPI
 from fastmcp import FastMCP
 from tools import add_video, get_clips, list_tables
 
+app = FastAPI(
+    title="Video Processor",
+    description="A FastAPI application for video processing.",
+    version="1.0.0",
+)
 mcp = FastMCP("VideoProcessor")
 
-mcp.add_tool(
-    name="add_video",
-    fn=add_video,
-    description="Add a new video to database.",
-    tags=["video", "ingestion"],
+app.add_api_route(
+    "/add_video/{video_name}",
+    add_video,
+    methods=["POST"],
+    description="Add a new video to the database.",
 )
 
+app.add_api_route(
+    "/list_videos",
+    list_tables,
+    methods=["GET"],
+    description="List all processed videos in the database.",
+)
 
-mcp.add_tool(
-    name="fetch_clip",
-    fn=get_clips,
+app.add_api_route(
+    "/fetch_clip",
+    get_clips,
+    methods=["GET"],
     description="Fetch a video clip based on a user query.",
-    tags=["video", "query"],
 )
 
-mcp.add_tool(
-    name="list_videos",
-    fn=list_tables,
-    description="List all processed videos in database.",
-    tags=["video", "list"],
-)
+mcp_server = mcp.from_fastapi(app)
 
 if __name__ == "__main__":
-    # FIXME: this is dirty, pass the config
-    # or, use uv run fastmcp run ... and cli pass the args
-    cfg = {"host": "127.0.0.1", "port": 8000, "transport": "sse"}
-    mcp.run(**cfg)
+    HOST = os.getenv("HOST", "127.0.0.1")
+    PORT = int(os.getenv("PORT", 8000))
+    mcp_server.run(transport="sse", host=HOST, port=PORT)

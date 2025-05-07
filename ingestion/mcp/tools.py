@@ -1,10 +1,12 @@
 import uuid
 
 import tqdm
-from core import splitter, utils
+from core import splitter
 from core.models import CachedTable
 from core.video_processor import VideoProcessor, get_registry, get_table
 from fastmcp import FastMCP
+
+from ingestion.core import tools
 
 video_processor = VideoProcessor(video_clip_length=60, split_fps=1.0, audio_chunk_length=30)
 
@@ -83,7 +85,7 @@ def get_clips(video_name: str, user_query: str, top_k: int = 1) -> str:
     )
 
     frames_df = frames.collect().to_pandas()
-    clip_path = utils.create_video_from_dataframe(frames_df, output_path=video_index.video_cache)
+    clip_path = tools.create_video_from_dataframe(frames_df, output_path=video_index.video_cache)
     return clip_path
 
 
