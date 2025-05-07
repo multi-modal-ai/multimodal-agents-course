@@ -2,6 +2,7 @@ from typing import Optional
 
 import pixeltable as pxt
 from core.base import BaseAgent
+from fastmcp import Client
 from utils import functions, queries
 
 try:
@@ -27,6 +28,7 @@ class Agent(BaseAgent):
         name: str,
         system_prompt: str,
         model: str = "gpt-4o-mini",
+        mcp_url: str = "http://localhost:8000",
         n_latest_messages: Optional[int] = 10,
         tools: Optional[pxt.tools] = None,
         reset: bool = False,
@@ -44,6 +46,17 @@ class Agent(BaseAgent):
             chat_kwargs=chat_kwargs,
             tool_kwargs=tool_kwargs,
         )
+
+        self.mcp_url = mcp_url
+
+    @pxt.udf
+    async def discover_tools(
+        self,
+    ):
+        mcp_server = Client("http://127.0.0.1:8000/sse")
+        async with mcp_server:
+            tools = await mcp_server.list_tools()
+            print(f"Discovered tools: {tools}")
 
     def _setup_chat_pipeline(self):
         """

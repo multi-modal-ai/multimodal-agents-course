@@ -76,6 +76,13 @@ class BaseAgent(ABC):
         self.agent = pxt.get_table(f"{self.directory}.agent")
         self.tools_table = pxt.get_table(f"{self.directory}.tools") if self.tools else None
 
+    def discover_tools(self):
+        """
+        Discover and register tools for the agent.
+        This method is a placeholder and should be implemented in subclasses.
+        """
+        raise NotImplementedError("Tool discovery is not implemented in the base class.")
+
     def _setup_tables(self):
         """
         Initialize the required Pixeltable tables for the agent.
