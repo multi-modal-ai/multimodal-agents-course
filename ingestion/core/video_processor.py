@@ -1,5 +1,6 @@
+import os
+from pathlib import Path
 from typing import Dict
-from uuid import uuid4
 
 import pixeltable as pxt
 from core.models import CachedTable, CachedTableMetadata
@@ -81,9 +82,9 @@ class VideoProcessor:
         )
 
     def setup_table(self, cache: str, table_name: str):
-        self.pxt_cache = cache
+        self.pxt_cache = cache.replace(os.sep, ".")
 
-        self.table_name = table_name if table_name else uuid4().hex
+        self.table_name = table_name
 
         self.full_table_name = f"{self.pxt_cache}.{self.table_name}"
         self.frames_view_name = f"{self.pxt_cache}.{self.table_name}_frames"
@@ -122,13 +123,18 @@ class VideoProcessor:
         return True
 
     def _create_table(self):
-        pxt.drop_dir(self.pxt_cache, force=True)
-        pxt.create_dir(self.pxt_cache, if_exists="ignore")
+        if Path(self.pxt_cache).exists():
+            logger.info(f"Cache path {self.pxt_cache} already exists. Deleting it.")
+            pxt.drop_dir(self.pxt_cache, force=True, if_not_exists="ignore")
+        else:
+            logger.info(f"Creating cache path {self.pxt_cache}.")
+            Path(self.pxt_cache).mkdir(parents=True, exist_ok=True)
+            pxt.create_dir(self.pxt_cache, if_exists="ignore")
 
         self.video_table = pxt.create_table(
-            self.full_table_name,
-            {"video": pxt.Video},
-            if_exists="ignore",
+            path_str=self.full_table_name.split(".")[-1],
+            schema={"video": pxt.Video},
+            if_exists="replace_force",
         )
 
         self.video_table.add_computed_column(

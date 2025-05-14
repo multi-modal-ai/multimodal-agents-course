@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import tqdm
@@ -16,14 +17,14 @@ def add_video(video_name: str) -> None:
         video_path: The path to the video file.
         video_name: The name of the video to be added.
     """
-    _cache_path = uuid.uuid4().hex
+    _cache_path = f"cache_{uuid.uuid4().hex[-4:]}"
     video_clips = splitter._preprocess_video(
         video_path=video_name,
         chunk_duration=60,
-        videos_cache=f".cache/{_cache_path}",
+        videos_cache=_cache_path,
     )
-
-    video_processor.setup_table(_cache_path, video_name)
+    table_name = video_name.split(os.sep)[-1].split(os.extsep)[0]
+    video_processor.setup_table(_cache_path, table_name)
     for video_clip in tqdm.tqdm(video_clips, desc="Adding video clips"):
         video_processor.add_video(video_clip)
 

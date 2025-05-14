@@ -1,9 +1,10 @@
 import os
 
-from fastapi import FastAPI
 from fastmcp import FastMCP
-from tools import add_video, get_clips, list_tables
+from tools import add_video
 
+### DISABLE FASTAPI ###
+"""
 app = FastAPI(
     title="Video Processor",
     description="A FastAPI application for video processing.",
@@ -34,7 +35,19 @@ app.add_api_route(
 
 mcp_server = mcp.from_fastapi(app)
 
+"""
+
+mcp = FastMCP("VideoProcessor")
+
+mcp.add_tool(
+    name="add_video",
+    description="Add a new video to the database.",
+    fn=add_video,
+    tags={"video": "ingest"},
+)
+
 if __name__ == "__main__":
     HOST = os.getenv("HOST", "127.0.0.1")
     PORT = int(os.getenv("PORT", 8000))
-    mcp_server.run(transport="sse", host=HOST, port=PORT)
+    mcp.run(transport="sse", port=PORT, host=HOST)
+    print(f"Server running at http://{HOST}:{PORT}")
