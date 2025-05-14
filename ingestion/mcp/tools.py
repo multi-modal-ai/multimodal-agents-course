@@ -1,9 +1,10 @@
 import uuid
 
 import tqdm
-from core import splitter, tools
+from core import splitter
 from core.models import CachedTable
 from core.video_processor import VideoProcessor, get_registry, get_table
+from utils import create_video_from_dataframe
 
 video_processor = VideoProcessor(video_clip_length=60, split_fps=1.0, audio_chunk_length=30)
 
@@ -27,7 +28,7 @@ def add_video(video_name: str) -> None:
         video_processor.add_video(video_clip)
 
 
-def get_clips(video_name: str, user_query: str, top_k: int = 1) -> str:
+def get_clips(video_name: str, user_query: str, top_k: int = 3) -> str:
     """Get a video clip based on the user query.
 
     Args:
@@ -40,37 +41,37 @@ def get_clips(video_name: str, user_query: str, top_k: int = 1) -> str:
     if not video_index:
         raise ValueError(f"Video index {video_name} not found in registry.")
 
-    sims = video_index.sentences_view.text.similarity(user_query)
-    results_df = (
+    sims = video_index.audio_chunks_view.text.similarity(user_query)
+    results = (
         video_index.sentences_view.select(
-            video_index.sentences_view.pos,
-            video_index.sentences_view.start_time_sec,
-            video_index.sentences_view.end_time_sec,
+            video_index.audio_chunks_view.pos,
+            video_index.audio_chunks_view.start_time_sec,
+            video_index.audio_chunks_view.end_time_sec,
             similarity=sims,
         )
         .order_by(sims, asc=False)
         .limit(top_k)
         .collect()
-        .to_pandas()
     )
 
-    best_entry_index = results_df["similarity"].idxmax()
-    best_start_time = results_df.loc[best_entry_index, "start_time_sec"]
-    best_end_time = results_df.loc[best_entry_index, "end_time_sec"]
+    top_k_entries = results.limit(top_k).collect()
+    if len(top_k_entries) > 0:
+        for entry in top_k_entries:
+            start_time_sec = float(entry["start_time_sec"])
+            end_time_sec = float(entry["end_time_sec"])
 
-    frames = (
-        video_index.frames_view.select(
-            video_index.frames_view.frame,
-        )
-        .where(
-            (video_index.frames_view.pos_msec >= best_start_time * 1e3)
-            & (video_index.frames_view.pos_msec <= best_end_time * 1e3)
-        )
-        .order_by(video_index.frames_view.frame_idx)
-    )
-
-    frames_df = frames.collect().to_pandas()
-    clip_path = tools.create_video_from_dataframe(frames_df, output_path=video_index.video_cache)
+            sampled_frames = (
+                video_index.frames_view.select(
+                    video_index.frames_view.frame_idx,
+                    video_index.frames_view.frame,
+                )
+                .where(
+                    (video_index.frames_view.pos_msec >= start_time_sec * 1e3)
+                    & (video_index.frames_view.pos_msec <= end_time_sec * 1e3)
+                )
+                .collect()
+            )
+            clip_path = create_video_from_dataframe(sampled_frames, output_path=video_index.video_cache)
     return clip_path
 
 

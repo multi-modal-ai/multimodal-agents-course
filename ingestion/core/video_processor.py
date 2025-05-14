@@ -89,7 +89,6 @@ class VideoProcessor:
         self.frames_view_name = f"{self.pxt_cache}.{self.table_name}_frames"
         self.audio_view_name = f"{self.pxt_cache}.{self.table_name}_audio_chunks"
         self.sentences_view_name = f"{self.pxt_cache}.{self.table_name}_sentences"
-        self.semantics_index_name = f"{self.pxt_cache}.{self.table_name}_semanticindex"
         self.video_table = None
 
         if not self._check_if_exists():
@@ -185,6 +184,14 @@ class VideoProcessor:
             column=self.sentences_view.text,  # this comes from L80, as iterator creates `text` rows`
             string_embed=sentence_transformer.using(model_id="intfloat/e5-large-v2"),
             if_exists="ignore",
+            idx_name=self.sentences_view_name + "_index",
+        )
+
+        self.audio_chunks.add_embedding_index(
+            column=self.audio_chunks.transcription.text,
+            string_embed=sentence_transformer.using(model_id="intfloat/e5-large-v2"),
+            if_exists="ignore",
+            idx_name=self.audio_view_name + "_index",
         )
 
     def add_video(self, video_path: str):

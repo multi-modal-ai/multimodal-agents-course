@@ -9,6 +9,9 @@ class CachedTableMetadata(BaseModel):
     sentences_view: str = Field(
         ..., description="After chunking audio, getting transcript and splitting it into sentences"
     )
+    audio_chunks_view: str = Field(
+        ..., description="After chunking audio, getting transcript and splitting it into sentences"
+    )
     semantics_index: str = Field(..., description="Embedding index for the sentences")
 
 
@@ -19,6 +22,9 @@ class CachedTable:
     sentences_view: pxt.Table = Field(
         ..., description="After chunking audio, getting transcript and splitting it into sentences"
     )
+    audio_chunks_view: pxt.Table = Field(
+        ..., description="After chunking audio, getting transcript and splitting it into sentences"
+    )
     semantics_index: pxt.Table = Field(..., description="Embedding index for the sentences")
 
     def from_metadata(cls, metadata: CachedTableMetadata) -> "CachedTable":
@@ -26,6 +32,7 @@ class CachedTable:
             video_cache=metadata.video_cache,
             video_table=pxt.get_table(metadata.video_table),
             frames_view=pxt.get_table(metadata.frames_view),
+            audio_chunks_view=pxt.get_table(metadata.audio_chunks_view),
             sentences_view=pxt.get_table(metadata.sentences_view),
             semantics_index=pxt.get_table(metadata.semantics_index),
         )
