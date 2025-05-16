@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import pixeltable as pxt
+from caption import CaptionModelType, VisualCaptioningModel
 
-# video_captioner = VisualCaptioningModel(device="cuda", model_tag=CaptionModelType.Qwen25_3B)
+video_captioner = VisualCaptioningModel(device="cuda", model_tag=CaptionModelType.Qwen25_3B)
 
 
 @pxt.udf

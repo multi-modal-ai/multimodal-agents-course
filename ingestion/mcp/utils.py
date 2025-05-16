@@ -28,9 +28,9 @@ def create_video_from_dataframe(video_df, output_path: str, fps: int = 5) -> str
             if stream.width != frame.width or stream.height != frame.height:
                 raise ValueError("All frames must have the same dimensions.")
 
-    av_frame = av.VideoFrame.from_ndarray(np.array(frame.convert("RGB")), format="rgb24")
-    for packet in stream.encode(av_frame):
-        container.mux(packet)
+        av_frame = av.VideoFrame.from_ndarray(np.array(frame.convert("RGB")), format="rgb24")
+        for packet in stream.encode(av_frame):
+            container.mux(packet)
 
     container.close()
     return str(out_file)

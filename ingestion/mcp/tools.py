@@ -24,8 +24,8 @@ def add_video(video_name: str) -> None:
         chunk_duration=video_processor.clip_len,
         videos_cache=video_processor.pxt_cache,
     )
-    for video_clip in tqdm.tqdm(video_clips, desc="Adding video clips"):
-        video_processor.add_video(str(video_clip))
+    for idx, video_clip in tqdm.tqdm(enumerate(video_clips, 1), desc="Adding video clips"):
+        video_processor.add_video(video_path=str(video_clip), video_index=idx)
 
 
 def get_clips(video_name: str, user_query: str, top_k: int = 3) -> str:
@@ -42,7 +42,7 @@ def get_clips(video_name: str, user_query: str, top_k: int = 3) -> str:
         raise ValueError(f"Video index {video_name} not found in registry.")
 
     sims = video_index.audio_chunks_view.chunk_text.similarity(user_query)
-    results = video_index.sentences_view.select(
+    results = video_index.audio_chunks_view.select(
         video_index.audio_chunks_view.pos,
         video_index.audio_chunks_view.start_time_sec,
         video_index.audio_chunks_view.end_time_sec,

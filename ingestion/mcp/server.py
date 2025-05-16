@@ -3,40 +3,6 @@ import os
 from fastmcp import FastMCP
 from tools import add_video, get_clips, list_tables
 
-### DISABLE FASTAPI ###
-"""
-app = FastAPI(
-    title="Video Processor",
-    description="A FastAPI application for video processing.",
-    version="1.0.0",
-)
-mcp = FastMCP("VideoProcessor")
-
-app.add_api_route(
-    "/add_video/{video_name}",
-    add_video,
-    methods=["POST"],
-    description="Add a new video to the database.",
-)
-
-app.add_api_route(
-    "/list_videos",
-    list_tables,
-    methods=["GET"],
-    description="List all processed videos in the database.",
-)
-
-app.add_api_route(
-    "/fetch_clip",
-    get_clips,
-    methods=["POST"],
-    description="Fetch a video clip based on a user query.",
-)
-
-mcp_server = mcp.from_fastapi(app)
-
-"""
-
 mcp = FastMCP("VideoProcessor")
 
 mcp.add_tool(

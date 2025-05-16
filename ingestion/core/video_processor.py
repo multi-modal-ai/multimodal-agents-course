@@ -159,7 +159,7 @@ class VideoProcessor:
 
         self.video_table = pxt.create_table(
             self.video_table_name,
-            schema={"video": pxt.Video},
+            schema={"video": pxt.Video, "video_index": pxt.type_system.Int},
             if_exists="replace_force",
         )
 
@@ -197,7 +197,10 @@ class VideoProcessor:
         )
 
         self.video_table.add_computed_column(
-            video_caption=caption_video(video=self.video_table.video, prompt="Describe the video in detail."),
+            video_caption=caption_video(
+                video=self.video_table.video,
+                prompt="Describe the video in detail. Do not hallucinate.Keep it short.",  # FIXME: move to config
+            ),
             if_exists="ignore",
         )
 
@@ -223,7 +226,7 @@ class VideoProcessor:
             idx_name="chunks_index",
         )
 
-    def add_video(self, video_path: str):
+    def add_video(self, video_path: str, video_index: int = 0):
         """
         Add a video to the pixel table.
 
@@ -234,4 +237,4 @@ class VideoProcessor:
             raise ValueError("Video table is not initialized. Call setup_table() first.")
 
         logger.info(f"Adding video {video_path} to table {self.video_table_name}")
-        self.video_table.insert([{"video": video_path}])
+        self.video_table.insert([{"video": video_path, "video_index": video_index}])
