@@ -1,5 +1,4 @@
 import os
-import uuid
 
 import tqdm
 from core import splitter
@@ -17,16 +16,16 @@ def add_video(video_name: str) -> None:
         video_path: The path to the video file.
         video_name: The name of the video to be added.
     """
-    _cache_path = f"cache_{uuid.uuid4().hex[-4:]}"
+    table_name = video_name.split(os.sep)[-1].split(os.extsep)[0]
+    video_processor.setup_table(video_name=table_name)
+
     video_clips = splitter._preprocess_video(
         video_path=video_name,
-        chunk_duration=60,
-        videos_cache=_cache_path,
+        chunk_duration=video_processor.clip_len,
+        videos_cache=video_processor.pxt_cache,
     )
-    table_name = video_name.split(os.sep)[-1].split(os.extsep)[0]
-    video_processor.setup_table(_cache_path, table_name)
     for video_clip in tqdm.tqdm(video_clips, desc="Adding video clips"):
-        video_processor.add_video(video_clip)
+        video_processor.add_video(str(video_clip))
 
 
 def get_clips(video_name: str, user_query: str, top_k: int = 3) -> str:
@@ -42,18 +41,13 @@ def get_clips(video_name: str, user_query: str, top_k: int = 3) -> str:
     if not video_index:
         raise ValueError(f"Video index {video_name} not found in registry.")
 
-    sims = video_index.audio_chunks_view.text.similarity(user_query)
-    results = (
-        video_index.sentences_view.select(
-            video_index.audio_chunks_view.pos,
-            video_index.audio_chunks_view.start_time_sec,
-            video_index.audio_chunks_view.end_time_sec,
-            similarity=sims,
-        )
-        .order_by(sims, asc=False)
-        .limit(top_k)
-        .collect()
-    )
+    sims = video_index.audio_chunks_view.chunk_text.similarity(user_query)
+    results = video_index.sentences_view.select(
+        video_index.audio_chunks_view.pos,
+        video_index.audio_chunks_view.start_time_sec,
+        video_index.audio_chunks_view.end_time_sec,
+        similarity=sims,
+    ).order_by(sims, asc=False)
 
     top_k_entries = results.limit(top_k).collect()
     if len(top_k_entries) > 0:

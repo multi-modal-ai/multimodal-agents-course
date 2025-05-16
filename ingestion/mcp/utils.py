@@ -4,7 +4,7 @@ import av
 import numpy as np
 
 
-def create_video_from_dataframe(video_df, output_path: str, fps: int) -> str:
+def create_video_from_dataframe(video_df, output_path: str, fps: int = 5) -> str:
     """Create a video from a dataframe of frames.
 
     Args:
@@ -14,7 +14,7 @@ def create_video_from_dataframe(video_df, output_path: str, fps: int) -> str:
     Returns:
         The path to the created video.
     """
-    out_file = Path(output_path)
+    out_file = Path(output_path).joinpath("clip.mp4")  # TODO: use uuid here man
     container = av.open(str(out_file), mode="w")
     stream = container.add_stream("h264", rate=fps)
     stream.pix_fmt = "yuv420p"

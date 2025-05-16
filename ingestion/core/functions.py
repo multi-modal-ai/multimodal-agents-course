@@ -1,16 +1,15 @@
 from pathlib import Path
 
 import pixeltable as pxt
-from core.caption import VisualCaptioningModel
 
-video_captioner = VisualCaptioningModel(device="cuda")
+# video_captioner = VisualCaptioningModel(device="cuda", model_tag=CaptionModelType.Qwen25_3B)
 
 
 @pxt.udf
 def caption_video(video: pxt.type_system.Video, prompt: pxt.type_system.String) -> str:
     vpath = Path(video)
     assert vpath.exists(), f"Video {video} invalid!"
-    preprocessed = video_captioner.preprocess_video(video_path=video, prompt=prompt)
+    preprocessed = video_captioner.preprocess_video(clip_path=video, prompt=prompt)
     generation = video_captioner.infer(preprocessed)
     return str(generation[-1])
 
@@ -18,6 +17,11 @@ def caption_video(video: pxt.type_system.Video, prompt: pxt.type_system.String) 
 @pxt.udf
 def compose_semantics(video_caption: pxt.type_system.String, transcript: pxt.type_system.Json) -> str:
     return f"{video_caption}.{transcript['text']}"
+
+
+@pxt.udf
+def extract_text_from_chunk(transcript: pxt.type_system.Json) -> str:
+    return f"{transcript['text']}"
 
 
 @pxt.udf

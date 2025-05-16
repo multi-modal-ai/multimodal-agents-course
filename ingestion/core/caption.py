@@ -12,9 +12,7 @@ class CaptionModelType(str, Enum):
 
 
 DEFAULT_MODEL_CHECKPOINTS_DIR = Path(os.getcwd()) / "checkpoints"
-DEFAULT_MODEL_REGISTRY = {
-    CaptionModelType.Qwen25_3B: "Qwen2.5-VL-3B-Instruct",
-}
+DEFAULT_MODEL_REGISTRY = {CaptionModelType.Qwen25_3B: "Qwen2.5-VL-3B-Instruct-AWQ"}
 
 
 def solve_device(device: str) -> str:
@@ -28,15 +26,15 @@ def solve_device(device: str) -> str:
 
 class VisualCaptioningModel:
     def __init__(self, device: str = "cuda", model_tag: CaptionModelType = None):
-        self._model_tag = model_tag if model_tag else CaptionModelType.PLM_1B
+        self._model_tag = model_tag if model_tag else CaptionModelType.Qwen25_3B
         self.model_dir = DEFAULT_MODEL_CHECKPOINTS_DIR / DEFAULT_MODEL_REGISTRY.get(self._model_tag)
         self._device = solve_device(device)
 
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            self._model_tag, torch_dtype=torch.bfloat16, device_map="auto", pretrained_model_name_or_path=self.model_dir
+            torch_dtype=torch.bfloat16, device_map="auto", pretrained_model_name_or_path=self.model_dir
         )
 
-        self.processor = AutoProcessor.from_pretrained(self._model_tag, pretrained_model_name_or_path=self.model_dir)
+        self.processor = AutoProcessor.from_pretrained(pretrained_model_name_or_path=self.model_dir)
 
     def preprocess_video(self, clip_path: Path, prompt: str) -> torch.Tensor:
         messages = [
@@ -47,7 +45,6 @@ class VisualCaptioningModel:
                         "type": "video",
                         "video": f"{str(clip_path)}",
                         "max_pixels": 360 * 420,
-                        "fps": 1.0,
                     },
                     {"type": "text", "text": prompt},
                 ],
@@ -60,15 +57,14 @@ class VisualCaptioningModel:
             text=[text],
             images=image_inputs,
             videos=video_inputs,
-            fps=1,
             padding=True,
             return_tensors="pt",
             **video_kwargs,
         )
-        inputs = inputs.to(self.device)
+        inputs = inputs.to(self._device)
         return inputs
 
-    def infer(self, inputs: torch.Tensor, max_new_tokens: int, skip_special_tokens: bool = True) -> str:
+    def infer(self, inputs: torch.Tensor, max_new_tokens: int = 500, skip_special_tokens: bool = True) -> str:
         generated_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)
         generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]
         output_text = self.processor.batch_decode(
@@ -78,4 +74,4 @@ class VisualCaptioningModel:
         return output_text
 
     def __repr__(self):
-        return f"VideoCaptionModel(model_tag={self._model_tag}, device={self.device})"
+        return f"VideoCaptionModel(model_tag={self._model_tag}, device={self._device})"

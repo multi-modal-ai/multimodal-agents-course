@@ -1,7 +1,7 @@
 import os
 
 from fastmcp import FastMCP
-from tools import add_video
+from tools import add_video, get_clips, list_tables
 
 ### DISABLE FASTAPI ###
 """
@@ -44,6 +44,20 @@ mcp.add_tool(
     description="Add a new video to the database.",
     fn=add_video,
     tags={"video": "ingest"},
+)
+
+mcp.add_tool(
+    name="list_tables",
+    description="List all processed videos in the database.",
+    fn=list_tables,
+    tags={"video": "list"},
+)
+
+mcp.add_tool(
+    name="get_clips",
+    description="Get a video clip based on a user query.",
+    fn=get_clips,
+    tags={"video": "search"},
 )
 
 if __name__ == "__main__":

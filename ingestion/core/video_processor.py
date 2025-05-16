@@ -1,8 +1,12 @@
+import json
 import os
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
 
 import pixeltable as pxt
+from core.functions import caption_video, extract_text_from_chunk
 from core.models import CachedTable, CachedTableMetadata
 from loguru import logger
 from pixeltable.functions import whisper
@@ -14,6 +18,7 @@ from pixeltable.iterators.video import FrameIterator
 
 logger = logger.bind(name="VideoProcessor")
 
+DEFAULT_INDEX_DIR = ".records"
 VIDEO_INDEXES_REGISTRY: Dict[str, CachedTableMetadata] = {}
 
 
@@ -24,16 +29,32 @@ def get_registry() -> Dict[str, CachedTableMetadata]:
     Returns:
         Dict[str, CachedTableMetadata]: The video index registry.
     """
+    global VIDEO_INDEXES_REGISTRY
+    if not VIDEO_INDEXES_REGISTRY:
+        try:
+            registry_files = [
+                f for f in os.listdir(DEFAULT_INDEX_DIR) if f.startswith("registry_") and f.endswith(".json")
+            ]
+            if registry_files:
+                latest_registry = Path(DEFAULT_INDEX_DIR) / max(registry_files)
+                with open(str(latest_registry), "r") as f:
+                    VIDEO_INDEXES_REGISTRY = json.load(f)
+                    for key, value in VIDEO_INDEXES_REGISTRY.items():
+                        VIDEO_INDEXES_REGISTRY[key] = CachedTableMetadata(**value)
+                logger.info(f"Loading registry from {latest_registry}")
+        except FileNotFoundError:
+            logger.warning("Registry file not found. Returning empty registry.")
+    else:
+        logger.info("Using existing video index registry.")
     return VIDEO_INDEXES_REGISTRY
 
 
 def add_index_to_registry(
     video_name: str,
     video_cache: str,
-    video_table_name: str,
     frames_view_name: str,
     sentences_view_name: str,
-    semantics_index_name: str,
+    audio_view_name: str,
 ):
     """
     Register a video index in the global registry.
@@ -49,15 +70,21 @@ def add_index_to_registry(
 
     """
     global VIDEO_INDEXES_REGISTRY
-    VIDEO_INDEXES_REGISTRY[video_name] = {
-        video_name: CachedTableMetadata(
-            video_cache=video_cache,
-            video_table=video_table_name,
-            frames_view=frames_view_name,
-            sentences_view=sentences_view_name,
-            semantics_index=semantics_index_name,
-        )
-    }
+    VIDEO_INDEXES_REGISTRY[video_name] = CachedTableMetadata(
+        video_cache=video_cache,
+        video_table=video_cache,
+        frames_view=frames_view_name,
+        sentences_view=sentences_view_name,
+        audio_chunks_view=audio_view_name,
+    )
+    dt = datetime.datetime.now()
+    dtstr = dt.strftime("%Y-%m-%d%H:%M:%S")
+    records_dir = Path(DEFAULT_INDEX_DIR)
+    records_dir.mkdir(parents=True, exist_ok=True)
+    with open(records_dir / f"registry_{dtstr}.json", "w") as f:
+        json.dump(VIDEO_INDEXES_REGISTRY, f, indent=4)
+
+    logger.info(f"Video index '{video_name}' registered in the global registry.")
 
 
 def get_table(video_name: str) -> Dict[str, CachedTable]:
@@ -67,8 +94,9 @@ def get_table(video_name: str) -> Dict[str, CachedTable]:
     Returns:
         Dict[str, CachedTable]: The video index registry.
     """
-    metadata = VIDEO_INDEXES_REGISTRY.get(video_name)
-    return CachedTable().from_metadata(metadata)
+    registry = get_registry()
+    metadata = registry.get(video_name)
+    return CachedTable.from_metadata(metadata)
 
 
 class VideoProcessor:
@@ -76,63 +104,61 @@ class VideoProcessor:
         self.clip_len = video_clip_length
         self.split_fps = split_fps
         self.audio_chunk_length = audio_chunk_length
+        self.pxt_cache = None
 
         logger.info(
             f"VideoProcessor initialized with clip length: {self.clip_len}, split fps: {self.split_fps}, audio chunk length: {self.audio_chunk_length}"
         )
 
-    def setup_table(self, cache: str, table_name: str):
-        self.pxt_cache = cache.replace(os.sep, ".")
+    def setup_table(self, video_name: str):
+        self.video_mapping_idx = video_name
+        exists = self._check_if_exists()
+        if exists:
+            logger.info(f"Video index '{self.video_mapping_idx}' already exists and is ready for use.")
+            cached_table: CachedTable = get_table(self.video_mapping_idx)
+            self.pxt_cache = cached_table.video_cache
+            self.video_table = cached_table.video_table
+            self.frames_view = cached_table.frames_view
+            self.audio_chunks = cached_table.audio_chunks_view
+            self.sentences_view = cached_table.sentences_view
 
-        self.table_name = table_name
-
-        self.full_table_name = f"{self.pxt_cache}.{self.table_name}"
-        self.frames_view_name = f"{self.pxt_cache}.{self.table_name}_frames"
-        self.audio_view_name = f"{self.pxt_cache}.{self.table_name}_audio_chunks"
-        self.sentences_view_name = f"{self.pxt_cache}.{self.table_name}_sentences"
-        self.video_table = None
-
-        if not self._check_if_exists():
-            logger.info(f"Creating new video index '{self.table_name}' in '{self.pxt_cache}'")
-            self._create_table()
         else:
-            logger.info(f"Video index '{self.full_table_name}' already exists and is ready for use.")
+            self.pxt_cache = f"cache_{uuid.uuid4().hex[-4:]}"
+            self.video_table_name = f"{self.pxt_cache}.table"
+            self.frames_view_name = f"{self.video_table_name}_frames"
+            self.audio_view_name = f"{self.video_table_name}_audio_chunks"
+            self.sentences_view_name = f"{self.video_table_name}_sentences"
+            self.video_table = None
+
+            self._create_table()
+
+            add_index_to_registry(
+                video_name=self.video_mapping_idx,
+                video_cache=self.pxt_cache,
+                video_table_name=self.video_table_name,
+                frames_view_name=self.frames_view_name,
+                sentences_view_name=self.sentences_view_name,
+                audio_view_name=self.audio_view_name,
+            )
+            logger.info(f"Creating new video index '{self.video_table_name}' in '{self.pxt_cache}'")
 
     def _check_if_exists(self) -> bool:
         """
-        Checks if the Pyxet table and related views/index for the video index exist.
+        Checks if the PixelTable table and related views/index for the video index exist.
 
         Returns:
             bool: True if all components exist, False otherwise.
         """
-        existing_tables = pxt.list_tables()
-        if self.full_table_name not in existing_tables:
-            try:
-                add_index_to_registry(
-                    video_name=self.table_name,
-                    video_cache=self.pxt_cache,
-                    video_table_name=self.full_table_name,
-                    frames_view_name=self.frames_view_name,
-                    sentences_view_name=self.sentences_view_name,
-                    semantics_index_name=self.semantics_index_name,
-                )
-                return False
-            except Exception as e:
-                logger.warning(f"Error while accessing existing video index '{self.full_table_name}': {e}")
-                return False
-        return True
+        existing_tables = get_registry()
+        return self.video_mapping_idx in existing_tables
 
     def _create_table(self):
-        if Path(self.pxt_cache).exists():
-            logger.info(f"Cache path {self.pxt_cache} already exists. Deleting it.")
-            pxt.drop_dir(self.pxt_cache, force=True, if_not_exists="ignore")
-        else:
-            logger.info(f"Creating cache path {self.pxt_cache}.")
-            Path(self.pxt_cache).mkdir(parents=True, exist_ok=True)
-            pxt.create_dir(self.pxt_cache, if_exists="ignore")
+        logger.info(f"Creating cache path {self.pxt_cache}.")
+        Path(self.pxt_cache).mkdir(parents=True, exist_ok=True)
+        pxt.create_dir(self.pxt_cache, if_exists="ignore")
 
         self.video_table = pxt.create_table(
-            path_str=self.full_table_name.split(".")[-1],
+            self.video_table_name,
             schema={"video": pxt.Video},
             if_exists="replace_force",
         )
@@ -154,9 +180,12 @@ class VideoProcessor:
             if_exists="ignore",
         )
 
-        # STEP 2: transcribe audio channel
         self.audio_chunks.add_computed_column(
-            transcription=whisper.transcribe(audio=self.audio_chunks.audio, model="base.en"),
+            transcription=whisper.transcribe(audio=self.audio_chunks.audio_chunk, model="base.en"),
+            if_exists="ignore",
+        )
+        self.audio_chunks.add_computed_column(
+            chunk_text=extract_text_from_chunk(self.audio_chunks.transcription),
             if_exists="ignore",
         )
 
@@ -167,16 +196,10 @@ class VideoProcessor:
             if_exists="ignore",
         )
 
-        # Step 4: caption an entire video
-        # DEPCRECATED: Will caption frames instead
-        # self.video_table.add_computed_column(
-        #     video_caption=caption_video(video=self.video_table.video, prompt="Describe the video in detail."),
-        # )
-
-        # self.video_table.add_computed_column(
-        #     semantics=compose_semantics(self.video_table.video_caption, self.video_table.transcription),
-        #     if_exists="replace",
-        # )
+        self.video_table.add_computed_column(
+            video_caption=caption_video(video=self.video_table.video, prompt="Describe the video in detail."),
+            if_exists="ignore",
+        )
 
         self.sentences_view = pxt.create_view(
             self.sentences_view_name,
@@ -190,14 +213,14 @@ class VideoProcessor:
             column=self.sentences_view.text,  # this comes from L80, as iterator creates `text` rows`
             string_embed=sentence_transformer.using(model_id="intfloat/e5-large-v2"),
             if_exists="ignore",
-            idx_name=self.sentences_view_name + "_index",
+            idx_name="sentences_index",
         )
 
         self.audio_chunks.add_embedding_index(
-            column=self.audio_chunks.transcription.text,
+            column=self.audio_chunks.chunk_text,
             string_embed=sentence_transformer.using(model_id="intfloat/e5-large-v2"),
             if_exists="ignore",
-            idx_name=self.audio_view_name + "_index",
+            idx_name="chunks_index",
         )
 
     def add_video(self, video_path: str):
@@ -210,5 +233,5 @@ class VideoProcessor:
         if not self.video_table:
             raise ValueError("Video table is not initialized. Call setup_table() first.")
 
-        logger.info(f"Adding video {video_path} to table {self.full_table_name}")
+        logger.info(f"Adding video {video_path} to table {self.video_table_name}")
         self.video_table.insert([{"video": video_path}])

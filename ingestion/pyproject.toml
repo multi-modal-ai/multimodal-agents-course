@@ -20,6 +20,7 @@ dependencies = [
     "spacy>=3.8.5",
     "torch>=2.7.0",
     "transformers>=4.51.3",
+    "autoawq>=0.2.9",
 ]
 
 [tool.uv.sources]

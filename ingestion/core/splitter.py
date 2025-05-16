@@ -1,7 +1,6 @@
 import glob
 import os
 import subprocess
-import uuid
 from pathlib import Path
 from typing import List
 
@@ -82,14 +81,13 @@ def _preprocess_video(
     Returns:
         A tuple containing the cache path and a list of video clips.
     """
-    _cache_path = uuid.uuid4().hex
     vpath = Path(video_path)
     assert vpath.exists(), f"Video could not be found {video_path}"
 
     video_segments_cache = split_video_to_chunks_subprocess(
         video_path=vpath,
         chunk_duration=chunk_duration,
-        cache_path=f"{videos_cache}/{_cache_path}",
+        cache_path=videos_cache,
     )
 
     video_files = glob.glob(f"{str(video_segments_cache)}/*.mp4")
