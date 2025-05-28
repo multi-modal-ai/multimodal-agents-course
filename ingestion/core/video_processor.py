@@ -192,15 +192,7 @@ class VideoProcessor:
         self.frames_view = pxt.create_view(
             self.frames_view_name,
             self.video_table,
-            iterator=FrameIterator.create(video=self.video_table.video, fps=1.0),  # FIXME: move to config
-            if_exists="ignore",
-        )
-
-        self.frames_view.add_computed_column(
-            im_caption=caption_image(
-                image=self.frames_view.frame,
-                prompt="Explain in detail what's in the image.",  # FIXME: move to config
-            ),
+            iterator=FrameIterator.create(video=self.video_table.video, fps=0.5),  # FIXME: move to config
             if_exists="ignore",
         )
 
@@ -209,6 +201,14 @@ class VideoProcessor:
         self.frames_view.add_embedding_index(
             column=self.frames_view.frame,
             image_embed=clip.using(model_id="openai/clip-vit-base-patch32"),
+        )
+
+        self.frames_view.add_computed_column(
+            im_caption=caption_image(
+                image=self.frames_view.frame,
+                prompt="Explain in detail what's in the image.",  # FIXME: move to config
+            ),
+            if_exists="ignore",
         )
 
         self.frames_view.add_embedding_index(
