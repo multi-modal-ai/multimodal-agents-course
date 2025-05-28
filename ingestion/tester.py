@@ -13,16 +13,12 @@ async def test_mcp():
             print()
 
         response = await mcp_client.call_tool(
-            "get_clips",
+            "add_video",
             {
-                "video_name": "2018_portugal_vs_spain_T0h0m_0h5m",
-                "user_query": "Cristiano Ronaldo penalty",
-                "top_k": 1,
+                "video_name": "/home/razvantalexandru/Documents/Projects/NeuralBits/multimodal-agents-course/.cache/por_vs_esp_5min/2018_portugal_vs_spain_T0h0m_0h5m.mp4",
             },
         )
         # print(f"Response from add_video: {response}")
-
-        tables = await mcp_client.call_tool("list_tables")
 
 
 if __name__ == "__main__":

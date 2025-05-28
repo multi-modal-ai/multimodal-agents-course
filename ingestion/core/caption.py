@@ -3,6 +3,7 @@ from enum import Enum
 from pathlib import Path
 
 import torch
+from PIL.Image import Image
 from qwen_vl_utils import process_vision_info
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
@@ -36,7 +37,34 @@ class VisualCaptioningModel:
 
         self.processor = AutoProcessor.from_pretrained(pretrained_model_name_or_path=self.model_dir)
 
-    def preprocess_video(self, clip_path: Path, prompt: str) -> torch.Tensor:
+    def _preprocess_image(self, image: Image | str, prompt: str) -> torch.Tensor:
+        if isinstance(image, str):
+            image = Image.open(image).convert("RGB")
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image, "max_pixels": 360 * 420},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+
+        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        image_inputs, video_inputs, video_kwargs = process_vision_info(messages, return_video_kwargs=True)
+        inputs: torch.Tensor = self.processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+            **video_kwargs,
+        )
+        inputs = inputs.to(self._device)
+        return inputs
+
+    def _preprocess_video(self, clip_path: Path, prompt: str) -> torch.Tensor:
         messages = [
             {
                 "role": "user",
@@ -63,6 +91,14 @@ class VisualCaptioningModel:
         )
         inputs = inputs.to(self._device)
         return inputs
+
+    def preprocess(self, input_data: Image | Path, prompt: str) -> torch.Tensor:
+        if isinstance(input_data, Image) or isinstance(input_data, str):
+            return self._preprocess_image(input_data, prompt)
+        elif isinstance(input_data, Path) and input_data.suffix in [".mp4", ".avi", ".mov"]:
+            return self._preprocess_video(input_data, prompt)
+        else:
+            raise ValueError("Unsupported input type. Provide an image or a video file path.")
 
     def infer(self, inputs: torch.Tensor, max_new_tokens: int = 500, skip_special_tokens: bool = True) -> str:
         generated_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens)

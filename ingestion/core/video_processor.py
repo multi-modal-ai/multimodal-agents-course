@@ -6,14 +6,13 @@ from pathlib import Path
 from typing import Dict
 
 import pixeltable as pxt
-from core.functions import caption_video, extract_text_from_chunk
+from core.functions import caption_image, extract_text_from_chunk
 from core.models import CachedTable, CachedTableMetadata
 from loguru import logger
 from pixeltable.functions import whisper
-from pixeltable.functions.huggingface import sentence_transformer
+from pixeltable.functions.huggingface import clip, sentence_transformer
 from pixeltable.functions.video import extract_audio
 from pixeltable.iterators import AudioSplitter
-from pixeltable.iterators.string import StringSplitter
 from pixeltable.iterators.video import FrameIterator
 
 logger = logger.bind(name="VideoProcessor")
@@ -53,7 +52,6 @@ def add_index_to_registry(
     video_name: str,
     video_cache: str,
     frames_view_name: str,
-    sentences_view_name: str,
     audio_view_name: str,
 ):
     """
@@ -74,10 +72,9 @@ def add_index_to_registry(
         video_cache=video_cache,
         video_table=video_cache,
         frames_view=frames_view_name,
-        sentences_view=sentences_view_name,
         audio_chunks_view=audio_view_name,
-    )
-    dt = datetime.datetime.now()
+    ).model_dump()
+    dt = datetime.now()
     dtstr = dt.strftime("%Y-%m-%d%H:%M:%S")
     records_dir = Path(DEFAULT_INDEX_DIR)
     records_dir.mkdir(parents=True, exist_ok=True)
@@ -120,24 +117,20 @@ class VideoProcessor:
             self.video_table = cached_table.video_table
             self.frames_view = cached_table.frames_view
             self.audio_chunks = cached_table.audio_chunks_view
-            self.sentences_view = cached_table.sentences_view
 
         else:
             self.pxt_cache = f"cache_{uuid.uuid4().hex[-4:]}"
             self.video_table_name = f"{self.pxt_cache}.table"
             self.frames_view_name = f"{self.video_table_name}_frames"
             self.audio_view_name = f"{self.video_table_name}_audio_chunks"
-            self.sentences_view_name = f"{self.video_table_name}_sentences"
             self.video_table = None
 
-            self._create_table()
+            self._setup_table()
 
             add_index_to_registry(
                 video_name=self.video_mapping_idx,
                 video_cache=self.pxt_cache,
-                video_table_name=self.video_table_name,
                 frames_view_name=self.frames_view_name,
-                sentences_view_name=self.sentences_view_name,
                 audio_view_name=self.audio_view_name,
             )
             logger.info(f"Creating new video index '{self.video_table_name}' in '{self.pxt_cache}'")
@@ -152,14 +145,14 @@ class VideoProcessor:
         existing_tables = get_registry()
         return self.video_mapping_idx in existing_tables
 
-    def _create_table(self):
+    def _setup_table(self):
         logger.info(f"Creating cache path {self.pxt_cache}.")
         Path(self.pxt_cache).mkdir(parents=True, exist_ok=True)
         pxt.create_dir(self.pxt_cache, if_exists="ignore")
 
         self.video_table = pxt.create_table(
             self.video_table_name,
-            schema={"video": pxt.Video, "video_index": pxt.type_system.Int},
+            schema={"video": pxt.Video},
             if_exists="replace_force",
         )
 
@@ -189,36 +182,6 @@ class VideoProcessor:
             if_exists="ignore",
         )
 
-        self.frames_view = pxt.create_view(
-            self.frames_view_name,
-            self.video_table,
-            iterator=FrameIterator.create(video=self.video_table.video, fps=1.0),  # FIXME: move to config
-            if_exists="ignore",
-        )
-
-        self.video_table.add_computed_column(
-            video_caption=caption_video(
-                video=self.video_table.video,
-                prompt="Describe the video in detail. Do not hallucinate.Keep it short.",  # FIXME: move to config
-            ),
-            if_exists="ignore",
-        )
-
-        self.sentences_view = pxt.create_view(
-            self.sentences_view_name,
-            self.audio_chunks,
-            iterator=StringSplitter.create(text=self.audio_chunks.transcription.text, separators="sentence"),
-            if_exists="ignore",
-        )
-
-        # Step 7: Add the embedding index for the sentences
-        self.sentences_view.add_embedding_index(
-            column=self.sentences_view.text,  # this comes from L80, as iterator creates `text` rows`
-            string_embed=sentence_transformer.using(model_id="intfloat/e5-large-v2"),
-            if_exists="ignore",
-            idx_name="sentences_index",
-        )
-
         self.audio_chunks.add_embedding_index(
             column=self.audio_chunks.chunk_text,
             string_embed=sentence_transformer.using(model_id="intfloat/e5-large-v2"),
@@ -226,7 +189,34 @@ class VideoProcessor:
             idx_name="chunks_index",
         )
 
-    def add_video(self, video_path: str, video_index: int = 0):
+        self.frames_view = pxt.create_view(
+            self.frames_view_name,
+            self.video_table,
+            iterator=FrameIterator.create(video=self.video_table.video, fps=1.0),  # FIXME: move to config
+            if_exists="ignore",
+        )
+
+        self.frames_view.add_computed_column(
+            im_caption=caption_image(
+                image=self.frames_view.frame,
+                prompt="Explain in detail what's in the image.",  # FIXME: move to config
+            ),
+            if_exists="ignore",
+        )
+
+        # Add semantic index for raw frames and over their captions using the same CLIP model
+        # CLIP is contrastive, embeddings of text-image pairs are close in the embedding space
+        self.frames_view.add_embedding_index(
+            column=self.frames_view.frame,
+            image_embed=clip.using(model_id="openai/clip-vit-base-patch32"),
+        )
+
+        self.frames_view.add_embedding_index(
+            column=self.frames_view.im_caption,
+            string_embed=clip.using(model_id="openai/clip-vit-base-patch32"),
+        )
+
+    def add_video(self, video_path: str):
         """
         Add a video to the pixel table.
 
@@ -237,4 +227,4 @@ class VideoProcessor:
             raise ValueError("Video table is not initialized. Call setup_table() first.")
 
         logger.info(f"Adding video {video_path} to table {self.video_table_name}")
-        self.video_table.insert([{"video": video_path, "video_index": video_index}])
+        self.video_table.insert([{"video": video_path}])

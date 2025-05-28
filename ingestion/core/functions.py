@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pixeltable as pxt
-from caption import CaptionModelType, VisualCaptioningModel
+from core.caption import CaptionModelType, VisualCaptioningModel
 
 video_captioner = VisualCaptioningModel(device="cuda", model_tag=CaptionModelType.Qwen25_3B)
 
@@ -10,7 +10,14 @@ video_captioner = VisualCaptioningModel(device="cuda", model_tag=CaptionModelTyp
 def caption_video(video: pxt.type_system.Video, prompt: pxt.type_system.String) -> str:
     vpath = Path(video)
     assert vpath.exists(), f"Video {video} invalid!"
-    preprocessed = video_captioner.preprocess_video(clip_path=video, prompt=prompt)
+    preprocessed = video_captioner.preprocess(clip_path=video, prompt=prompt)
+    generation = video_captioner.infer(preprocessed)
+    return str(generation[-1])
+
+
+@pxt.udf
+def caption_image(image: pxt.type_system.Image, prompt: pxt.type_system.String) -> str:
+    preprocessed = video_captioner.preprocess(input_data=image, prompt=prompt)
     generation = video_captioner.infer(preprocessed)
     return str(generation[-1])
 
