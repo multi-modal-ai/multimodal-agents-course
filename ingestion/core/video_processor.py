@@ -70,7 +70,7 @@ def add_index_to_registry(
     global VIDEO_INDEXES_REGISTRY
     VIDEO_INDEXES_REGISTRY[video_name] = CachedTableMetadata(
         video_cache=video_cache,
-        video_table=video_cache,
+        video_table=f"{video_cache}.table",  # FIXME: this is a hack, should be fixed before passed here
         frames_view=frames_view_name,
         audio_chunks_view=audio_view_name,
     ).model_dump()

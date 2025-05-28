@@ -1,16 +1,9 @@
 import os
 
 from fastmcp import FastMCP
-from tools import add_video, get_clip_by_caption_sim, get_clip_by_image_sim, get_clip_by_speech_sim, list_tables
+from tools import get_clip_by_caption_sim, get_clip_by_image_sim, get_clip_by_speech_sim, list_tables
 
 mcp = FastMCP("VideoProcessor")
-
-mcp.add_tool(
-    name="add_video",
-    description="Add a new video to the database.",
-    fn=add_video,
-    tags={"video": "ingest"},
-)
 
 mcp.add_tool(
     name="list_tables",

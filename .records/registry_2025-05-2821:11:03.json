@@ -1,0 +1,8 @@
+{
+    "2018_portugal_vs_spain_T0h0m_0h5m": {
+        "video_cache": "cache_cd64",
+        "video_table": "cache_cd64.table",
+        "frames_view": "cache_cd64.table_frames",
+        "audio_chunks_view": "cache_cd64.table_audio_chunks"
+    }
+}

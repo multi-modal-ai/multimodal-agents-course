@@ -1,25 +1,11 @@
-import os
+from typing import List
 
 from core.models import Base64ToPILImageModel, CachedTable
-from core.video_processor import VideoProcessor, get_registry, get_table
+from core.video_processor import get_registry, get_table
 from pixeltable.functions.video import make_video
 
-video_processor = VideoProcessor(video_clip_length=60, split_fps=1.0, audio_chunk_length=30)
 
-
-def add_video(video_name: str) -> None:
-    """Add a video to the pixel table.
-
-    Args:
-        video_path: The path to the video file.
-        video_name: The name of the video to be added.
-    """
-    table_name = video_name.split(os.sep)[-1].split(os.extsep)[0]
-    video_processor.setup_table(video_name=table_name)
-    video_processor.add_video(video_path=str(video_name))
-
-
-def get_clip_by_speech_sim(video_name: str, user_query: str, top_k: int = 3) -> str:
+def get_clip_by_speech_sim(video_name: str, user_query: str, top_k: int = 3) -> List[str]:
     """Get a video clip based on the user query.
 
     Args:
@@ -47,15 +33,19 @@ def get_clip_by_speech_sim(video_name: str, user_query: str, top_k: int = 3) -> 
             start_time_sec = float(entry["start_time_sec"])
             end_time_sec = float(entry["end_time_sec"])
 
-            sampled_clip = video_index.frames_view.select(make_video(video_index.frames_view.frame)).where(
-                (video_index.frames_view.pos_msec >= start_time_sec * 1e3)
-                & (video_index.frames_view.pos_msec <= end_time_sec * 1e3)
+            sampled_clip = (
+                video_index.frames_view.select(make_video(video_index.frames_view.frame))
+                .where(
+                    (video_index.frames_view.pos_msec >= start_time_sec * 1e3)
+                    & (video_index.frames_view.pos_msec <= end_time_sec * 1e3)
+                )
+                .collect()
             )
-            video_clips.append(sampled_clip)
+            video_clips.append(str(sampled_clip))
     return video_clips
 
 
-def get_clip_by_image_sim(video_name: str, image_base64: Base64ToPILImageModel, top_k: int = 3) -> str:
+def get_clip_by_image_sim(video_name: str, image_base64: Base64ToPILImageModel, top_k: int = 3) -> List[str]:
     """Get a video clip based on the user query using image similarity.
 
     Args:
@@ -82,15 +72,19 @@ def get_clip_by_image_sim(video_name: str, image_base64: Base64ToPILImageModel, 
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
             pos_msec = float(entry["pos_msec"])
-            sampled_clip = video_index.frames_view.select(make_video(video_index.frames_view.frame)).where(
-                (video_index.frames_view.pos_msec >= pos_msec - 500)
-                & (video_index.frames_view.pos_msec <= pos_msec + 500)
+            sampled_clip = (
+                video_index.frames_view.select(make_video(video_index.frames_view.frame))
+                .where(
+                    (video_index.frames_view.pos_msec >= pos_msec - 500)
+                    & (video_index.frames_view.pos_msec <= pos_msec + 500)
+                )
+                .collect()
             )
-            video_clips.append(sampled_clip)
+            video_clips.append(str(sampled_clip))  # str(obj) will give the video path on disk
     return video_clips
 
 
-def get_clip_by_caption_sim(video_name: str, user_query: str, top_k: int = 3) -> str:
+def get_clip_by_caption_sim(video_name: str, user_query: str, top_k: int = 3) -> List[str]:
     """Get a video clip based on the user query using caption similarity.
 
     Args:
@@ -113,15 +107,21 @@ def get_clip_by_caption_sim(video_name: str, user_query: str, top_k: int = 3) ->
     ).order_by(sims, asc=False)
 
     video_clips = []
+    # FIXME: hardcoded NxFRAMES threshold
+    N = 10  # frames -before T0 +after T0
     top_k_entries = results.limit(top_k).collect()
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
             pos_msec = float(entry["pos_msec"])
-            sampled_clip = video_index.frames_view.select(make_video(video_index.frames_view.frame)).where(
-                (video_index.frames_view.pos_msec >= pos_msec - 500)
-                & (video_index.frames_view.pos_msec <= pos_msec + 500)
+            sampled_clip = (
+                video_index.frames_view.select(make_video(video_index.frames_view.pos, video_index.frames_view.frame))
+                .where(
+                    (video_index.frames_view.pos_msec >= pos_msec - 1e3 * N)
+                    & (video_index.frames_view.pos_msec <= pos_msec + 1e3 * N)
+                )
+                .collect()
             )
-            video_clips.append(sampled_clip)
+            video_clips.append(str(sampled_clip))  # str(obj) will give the video path on disk
     return video_clips
 
 
