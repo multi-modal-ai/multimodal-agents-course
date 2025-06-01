@@ -1,5 +1,6 @@
 from fastmcp import FastMCP
 from tools import (
+    process_video,
     get_clip_by_caption_sim,
     get_clip_by_image_sim,
     get_clip_by_speech_sim,
@@ -7,6 +8,13 @@ from tools import (
 )
 
 mcp = FastMCP("VideoProcessor")
+
+mcp.add_tool(
+    name="process_video",
+    description="Process a video file and prepare it for searching.",
+    fn=process_video,
+    tags={"video", "process"},
+)
 
 mcp.add_tool(
     name="list_tables",
