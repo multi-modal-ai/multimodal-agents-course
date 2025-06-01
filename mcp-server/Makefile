@@ -18,7 +18,3 @@ lint-check:
 	uv run ruff check $(CHECK_DIRS)
 
 # --- MCP Server ---
-
-start-mcp-server:
-	
-stop-mcp-server:

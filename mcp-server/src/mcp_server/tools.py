@@ -1,10 +1,10 @@
 from typing import List
 
-from mcp_server.config import settings
-
 from pixeltable.functions.video import make_video
 from video_ingestion.models import Base64ToPILImageModel, CachedTable
-from video_ingestion.video_processor import get_registry, get_table, VideoProcessor
+from video_ingestion.video_processor import VideoProcessor, get_registry, get_table
+
+from mcp_server.config import settings
 
 
 def process_video(video_path: str) -> str:
@@ -30,7 +30,9 @@ def process_video(video_path: str) -> str:
 
 
 def get_clip_by_speech_sim(
-    video_name: str, user_query: str, top_k: int = settings.SPEECH_SIMILARITY_SEARCH_TOP_K
+    video_name: str,
+    user_query: str,
+    top_k: int = settings.SPEECH_SIMILARITY_SEARCH_TOP_K,
 ) -> List[str]:
     """Get a video clip based on the user query.
 
@@ -74,7 +76,9 @@ def get_clip_by_speech_sim(
 
 
 def get_clip_by_image_sim(
-    video_name: str, image_base64: Base64ToPILImageModel, top_k: int = settings.IMAGE_SIMILARITY_SEARCH_TOP_K
+    video_name: str,
+    image_base64: Base64ToPILImageModel,
+    top_k: int = settings.IMAGE_SIMILARITY_SEARCH_TOP_K,
 ) -> List[str]:
     """Get a video clip based on the user query using image similarity.
 
@@ -119,7 +123,9 @@ def get_clip_by_image_sim(
 
 
 def get_clip_by_caption_sim(
-    video_name: str, user_query: str, top_k: int = settings.CAPTION_SIMILARITY_SEARCH_TOP_K
+    video_name: str,
+    user_query: str,
+    top_k: int = settings.CAPTION_SIMILARITY_SEARCH_TOP_K,
 ) -> List[str]:
     """Get a video clip based on the user query using caption similarity.
 
