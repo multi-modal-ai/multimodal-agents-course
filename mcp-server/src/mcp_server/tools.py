@@ -1,9 +1,8 @@
 from typing import List
 
 from pixeltable.functions.video import make_video
-from video_ingestion.video_processor import get_registry, get_table
-
 from video_ingestion.models import Base64ToPILImageModel, CachedTable
+from video_ingestion.video_processor import get_registry, get_table
 
 
 def get_clip_by_speech_sim(

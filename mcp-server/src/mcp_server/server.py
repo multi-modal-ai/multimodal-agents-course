@@ -1,5 +1,4 @@
 from fastmcp import FastMCP
-
 from tools import (
     get_clip_by_caption_sim,
     get_clip_by_image_sim,

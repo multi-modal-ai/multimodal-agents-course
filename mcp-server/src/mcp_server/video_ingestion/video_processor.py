@@ -6,14 +6,14 @@ from pathlib import Path
 from typing import Dict
 
 import pixeltable as pxt
-from video_ingestion.functions import caption_image, extract_text_from_chunk
-from video_ingestion.models import CachedTable, CachedTableMetadata
 from loguru import logger
 from pixeltable.functions import whisper
 from pixeltable.functions.huggingface import clip, sentence_transformer
 from pixeltable.functions.video import extract_audio
 from pixeltable.iterators import AudioSplitter
 from pixeltable.iterators.video import FrameIterator
+from video_ingestion.functions import caption_image, extract_text_from_chunk
+from video_ingestion.models import CachedTable, CachedTableMetadata
 
 logger = logger.bind(name="VideoProcessor")
 
