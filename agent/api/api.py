@@ -13,7 +13,6 @@ app = FastAPI(
 )
 
 
-# Pydantic models for request/response validation
 class ChatRequest(BaseModel):
     message: str
 
@@ -22,7 +21,6 @@ class ChatResponse(BaseModel):
     response: str
 
 
-# Initialize the agent
 agent = Agent(
     name="sport_assistant",
     system_prompt=SPORT_ASSISTANT_SYSTEM_PROMPT.prompt,
