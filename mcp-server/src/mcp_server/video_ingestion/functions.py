@@ -1,12 +1,12 @@
 import pixeltable as pxt
-from video_ingestion.caption import VisualCaptioningModel
+from mcp_server.video_ingestion.caption import VisualCaptioningModel
 
 visual_captioner_model = VisualCaptioningModel()
 
 
 @pxt.udf
 def caption_image(image: pxt.type_system.Image, prompt: pxt.type_system.String) -> str:
-    return visual_captioner_model.caption(image, prompt)
+    return visual_captioner_model.caption(image, prompt, True)
 
 
 @pxt.udf

@@ -42,7 +42,8 @@ class CachedTable:
         self.audio_chunks_view = audio_chunks_view
 
     @classmethod
-    def from_metadata(cls, metadata: CachedTableMetadata) -> "CachedTable":
+    def from_metadata(cls, metadata: dict | CachedTableMetadata) -> "CachedTable":
+        metadata = CachedTableMetadata(**metadata) if isinstance(metadata, dict) else metadata
         return cls(
             video_cache=metadata.video_cache,
             video_table=pxt.get_table(metadata.video_table),

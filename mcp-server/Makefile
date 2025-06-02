@@ -18,3 +18,19 @@ lint-check:
 	uv run ruff check $(CHECK_DIRS)
 
 # --- MCP Server ---
+
+start-mcp-server: stop-mcp-server
+	docker build -t mcp-server . && \
+	docker run -d -p 8000:8000 --name mcp-server --env-file .env -v ./videos:/app/videos -v ./.pixeltable:/root/.pixeltable -v ./.records:/app/.records mcp-server
+
+stop-mcp-server:
+	docker stop mcp-server || true && \
+	docker rm mcp-server || true && \
+	rm -rf .pixeltable && \
+	rm -rf .records
+
+# --- FFmpeg ---
+
+convert-video:
+	ffmpeg -i $(input) -c:v libx264 -c:a copy $(output)
+

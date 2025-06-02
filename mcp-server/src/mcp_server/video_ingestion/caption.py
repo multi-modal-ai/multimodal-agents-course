@@ -2,6 +2,7 @@ import base64
 from io import BytesIO
 
 from groq import Groq
+from loguru import logger
 from PIL import Image
 
 from mcp_server.config import settings
@@ -57,7 +58,7 @@ class VisualCaptioningModel:
         self.model_name = model_name
         self.client = Groq(api_key=settings.GROQ_API_KEY)
 
-    def caption(self, image: Image.Image | str, prompt: str) -> str:
+    def caption(self, image: Image.Image | str, prompt: str, verbose: bool = False) -> str:
         """Generate a caption for the given image using the specified prompt.
 
         Args:
@@ -89,6 +90,10 @@ class VisualCaptioningModel:
             ],
             model=self.model_name,
         )
+
+        if verbose:
+            logger.info("Image successfully captioned")
+
         return chat_completion.choices[0].message.content
 
     def __repr__(self):

@@ -12,8 +12,8 @@ from pixeltable.functions.huggingface import clip, sentence_transformer
 from pixeltable.functions.video import extract_audio
 from pixeltable.iterators import AudioSplitter
 from pixeltable.iterators.video import FrameIterator
-from video_ingestion.functions import caption_image, extract_text_from_chunk
-from video_ingestion.models import CachedTable, CachedTableMetadata
+from mcp_server.video_ingestion.functions import caption_image, extract_text_from_chunk
+from mcp_server.video_ingestion.models import CachedTable, CachedTableMetadata
 
 logger = logger.bind(name="VideoProcessor")
 
@@ -94,7 +94,9 @@ def get_table(video_name: str) -> Dict[str, CachedTable]:
         Dict[str, CachedTable]: The video index registry.
     """
     registry = get_registry()
+    logger.info(f"Registry: {registry}")
     metadata = registry.get(video_name)
+    logger.info(f"Metadata: {metadata}")
     return CachedTable.from_metadata(metadata)
 
 

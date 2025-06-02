@@ -1,8 +1,8 @@
 from typing import List
 
 from pixeltable.functions.video import make_video
-from video_ingestion.models import Base64ToPILImageModel, CachedTable
-from video_ingestion.video_processor import VideoProcessor, get_registry, get_table
+from mcp_server.video_ingestion.models import Base64ToPILImageModel, CachedTable
+from mcp_server.video_ingestion.video_processor import VideoProcessor, get_registry, get_table
 
 from mcp_server.config import settings
 
