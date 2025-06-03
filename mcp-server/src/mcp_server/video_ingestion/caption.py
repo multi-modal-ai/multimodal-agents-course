@@ -58,7 +58,9 @@ class VisualCaptioningModel:
         self.model_name = model_name
         self.client = Groq(api_key=settings.GROQ_API_KEY)
 
-    def caption(self, image: Image.Image | str, prompt: str, verbose: bool = False) -> str:
+    def caption(
+        self, image: Image.Image | str, prompt: str, verbose: bool = False
+    ) -> str:
         """Generate a caption for the given image using the specified prompt.
 
         Args:

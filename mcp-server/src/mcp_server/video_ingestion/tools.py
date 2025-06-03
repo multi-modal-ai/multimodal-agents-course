@@ -4,23 +4,24 @@ from typing import Optional
 import av
 import numpy as np
 import pandas as pd
+from moviepy import VideoFileClip
 from PIL import Image
 
-from moviepy import VideoFileClip
 
-
-def extract_video_clip(video_path: str, start_time: float, end_time: float, output_path: str = None) -> VideoFileClip:
+def extract_video_clip(
+    video_path: str, start_time: float, end_time: float, output_path: str = None
+) -> VideoFileClip:
     if start_time >= end_time:
         raise ValueError("start_time must be less than end_time")
-    
+
     video = VideoFileClip(video_path)
     clip = video.subclipped(start_time=start_time, end_time=end_time)
 
-
     if output_path:
         clip.write_videofile(output_path)
-    
+
     return VideoFileClip(output_path)
+
 
 def create_video_from_dataframe(df: pd.DataFrame, output_path: str, fps: int = 10):
     """
@@ -64,5 +65,3 @@ def create_video_from_dataframe(df: pd.DataFrame, output_path: str, fps: int = 1
     finally:
         if container:
             container.close()
-
-

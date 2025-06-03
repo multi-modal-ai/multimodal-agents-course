@@ -1,10 +1,14 @@
-from loguru import logger
 from typing import List
 
-from mcp_server.video_ingestion.models import Base64ToPILImageModel, CachedTable
-from mcp_server.video_ingestion.video_processor import VideoProcessor, get_registry, get_table
+from loguru import logger
 
 from mcp_server.config import settings
+from mcp_server.video_ingestion.models import Base64ToPILImageModel, CachedTable
+from mcp_server.video_ingestion.video_processor import (
+    VideoProcessor,
+    get_registry,
+    get_table,
+)
 
 
 def process_video(video_path: str) -> str:
@@ -53,10 +57,10 @@ def get_clip_by_speech_sim(
         video_index.audio_chunks_view.end_time_sec,
         similarity=sims,
     ).order_by(sims, asc=False)
-    
+
     video_clips = []
     top_k_entries = results.limit(top_k).collect()
-    
+
     logger.info(top_k_entries)
     logger.info(len(top_k_entries))
 
@@ -69,7 +73,7 @@ def get_clip_by_speech_sim(
                 "similarity": float(entry["similarity"]),
             }
             video_clips.append(video_clip_info_dict)
-            
+
     return video_clips
 
 
@@ -104,8 +108,10 @@ def get_clip_by_image_sim(
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
             video_clip_info_dict = {
-                "start_time": entry["pos_msec"] / 1000. - settings.DELTA_SECONDS_FRAME_INTERVAL ,
-                "end_time": entry["pos_msec"] / 1000. + settings.DELTA_SECONDS_FRAME_INTERVAL,
+                "start_time": entry["pos_msec"] / 1000.0
+                - settings.DELTA_SECONDS_FRAME_INTERVAL,
+                "end_time": entry["pos_msec"] / 1000.0
+                + settings.DELTA_SECONDS_FRAME_INTERVAL,
                 "similarity": float(entry["similarity"]),
             }
             video_clips.append(video_clip_info_dict)
@@ -143,8 +149,10 @@ def get_clip_by_caption_sim(
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
             video_clip_info_dict = {
-                "start_time": entry["pos_msec"] / 1000. - settings.DELTA_SECONDS_FRAME_INTERVAL ,
-                "end_time": entry["pos_msec"] / 1000. + settings.DELTA_SECONDS_FRAME_INTERVAL,
+                "start_time": entry["pos_msec"] / 1000.0
+                - settings.DELTA_SECONDS_FRAME_INTERVAL,
+                "end_time": entry["pos_msec"] / 1000.0
+                + settings.DELTA_SECONDS_FRAME_INTERVAL,
                 "similarity": float(entry["similarity"]),
             }
             video_clips.append(video_clip_info_dict)

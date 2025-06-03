@@ -43,7 +43,9 @@ class CachedTable:
 
     @classmethod
     def from_metadata(cls, metadata: dict | CachedTableMetadata) -> "CachedTable":
-        metadata = CachedTableMetadata(**metadata) if isinstance(metadata, dict) else metadata
+        metadata = (
+            CachedTableMetadata(**metadata) if isinstance(metadata, dict) else metadata
+        )
         return cls(
             video_cache=metadata.video_cache,
             video_table=pxt.get_table(metadata.video_table),

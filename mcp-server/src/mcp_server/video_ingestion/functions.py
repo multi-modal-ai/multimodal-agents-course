@@ -1,4 +1,5 @@
 import pixeltable as pxt
+
 from mcp_server.video_ingestion.caption import VisualCaptioningModel
 
 visual_captioner_model = VisualCaptioningModel()

@@ -12,6 +12,7 @@ from pixeltable.functions.huggingface import clip, sentence_transformer
 from pixeltable.functions.video import extract_audio
 from pixeltable.iterators import AudioSplitter
 from pixeltable.iterators.video import FrameIterator
+
 from mcp_server.video_ingestion.functions import caption_image, extract_text_from_chunk
 from mcp_server.video_ingestion.models import CachedTable, CachedTableMetadata
 
