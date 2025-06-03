@@ -21,7 +21,10 @@ lint-check:
 
 start-mcp-server: stop-mcp-server
 	docker build -t mcp-server . && \
-	docker run -d -p 8000:8000 --name mcp-server --env-file .env -v ./videos:/app/videos -v ./.pixeltable:/root/.pixeltable -v ./.records:/app/.records mcp-server
+	docker run -d -p 8000:8000 --name mcp-server --env-file .env -v ./notebooks/data:/app/videos -v ./.pixeltable:/root/.pixeltable -v ./.records:/app/.records mcp-server
+
+inspect-mcp-server:
+	npx @modelcontextprotocol/inspector
 
 stop-mcp-server:
 	docker stop mcp-server || true && \

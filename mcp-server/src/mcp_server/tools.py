@@ -1,6 +1,6 @@
+from loguru import logger
 from typing import List
 
-from pixeltable.functions.video import make_video
 from mcp_server.video_ingestion.models import Base64ToPILImageModel, CachedTable
 from mcp_server.video_ingestion.video_processor import VideoProcessor, get_registry, get_table
 
@@ -33,7 +33,7 @@ def get_clip_by_speech_sim(
     video_name: str,
     user_query: str,
     top_k: int = settings.SPEECH_SIMILARITY_SEARCH_TOP_K,
-) -> List[str]:
+) -> List[dict]:
     """Get a video clip based on the user query.
 
     Args:
@@ -53,25 +53,23 @@ def get_clip_by_speech_sim(
         video_index.audio_chunks_view.end_time_sec,
         similarity=sims,
     ).order_by(sims, asc=False)
-
+    
     video_clips = []
     top_k_entries = results.limit(top_k).collect()
+    
+    logger.info(top_k_entries)
+    logger.info(len(top_k_entries))
+
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
-            start_time_sec = float(entry["start_time_sec"])
-            end_time_sec = float(entry["end_time_sec"])
-
-            sampled_clip = (
-                video_index.frames_view.select(
-                    make_video(video_index.frames_view.frame)
-                )
-                .where(
-                    (video_index.frames_view.pos_msec >= start_time_sec * 1e3)
-                    & (video_index.frames_view.pos_msec <= end_time_sec * 1e3)
-                )
-                .collect()
-            )
-            video_clips.append(str(sampled_clip))
+            logger.info(entry)
+            video_clip_info_dict = {
+                "start_time": float(entry["start_time_sec"]),
+                "end_time": float(entry["end_time_sec"]),
+                "similarity": float(entry["similarity"]),
+            }
+            video_clips.append(video_clip_info_dict)
+            
     return video_clips
 
 
@@ -79,7 +77,7 @@ def get_clip_by_image_sim(
     video_name: str,
     image_base64: Base64ToPILImageModel,
     top_k: int = settings.IMAGE_SIMILARITY_SEARCH_TOP_K,
-) -> List[str]:
+) -> List[dict]:
     """Get a video clip based on the user query using image similarity.
 
     Args:
@@ -105,20 +103,12 @@ def get_clip_by_image_sim(
     top_k_entries = results.limit(top_k).collect()
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
-            pos_msec = float(entry["pos_msec"])
-            sampled_clip = (
-                video_index.frames_view.select(
-                    make_video(video_index.frames_view.frame)
-                )
-                .where(
-                    (video_index.frames_view.pos_msec >= pos_msec - 500)
-                    & (video_index.frames_view.pos_msec <= pos_msec + 500)
-                )
-                .collect()
-            )
-            video_clips.append(
-                str(sampled_clip)
-            )  # str(obj) will give the video path on disk
+            video_clip_info_dict = {
+                "start_time": entry["pos_msec"] / 1000. - settings.DELTA_SECONDS_FRAME_INTERVAL ,
+                "end_time": entry["pos_msec"] / 1000. + settings.DELTA_SECONDS_FRAME_INTERVAL,
+                "similarity": float(entry["similarity"]),
+            }
+            video_clips.append(video_clip_info_dict)
     return video_clips
 
 
@@ -126,7 +116,7 @@ def get_clip_by_caption_sim(
     video_name: str,
     user_query: str,
     top_k: int = settings.CAPTION_SIMILARITY_SEARCH_TOP_K,
-) -> List[str]:
+) -> List[dict]:
     """Get a video clip based on the user query using caption similarity.
 
     Args:
@@ -149,27 +139,15 @@ def get_clip_by_caption_sim(
     ).order_by(sims, asc=False)
 
     video_clips = []
-    # FIXME: hardcoded NxFRAMES threshold
-    N = 10  # frames -before T0 +after T0
     top_k_entries = results.limit(top_k).collect()
     if len(top_k_entries) > 0:
         for entry in top_k_entries:
-            pos_msec = float(entry["pos_msec"])
-            sampled_clip = (
-                video_index.frames_view.select(
-                    make_video(
-                        video_index.frames_view.pos, video_index.frames_view.frame
-                    )
-                )
-                .where(
-                    (video_index.frames_view.pos_msec >= pos_msec - 1e3 * N)
-                    & (video_index.frames_view.pos_msec <= pos_msec + 1e3 * N)
-                )
-                .collect()
-            )
-            video_clips.append(
-                str(sampled_clip)
-            )  # str(obj) will give the video path on disk
+            video_clip_info_dict = {
+                "start_time": entry["pos_msec"] / 1000. - settings.DELTA_SECONDS_FRAME_INTERVAL ,
+                "end_time": entry["pos_msec"] / 1000. + settings.DELTA_SECONDS_FRAME_INTERVAL,
+                "similarity": float(entry["similarity"]),
+            }
+            video_clips.append(video_clip_info_dict)
     return video_clips
 
 

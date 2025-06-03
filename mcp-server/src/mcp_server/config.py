@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", env_file_encoding="utf-8"
     )
-
     # --- GROQ Configuration ---
     GROQ_API_KEY: str
     GROQ_VLM_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
@@ -20,9 +19,11 @@ class Settings(BaseSettings):
 
     # --- Image Similarity Search Configuration ---
     IMAGE_SIMILARITY_SEARCH_TOP_K: int = 3
+    DELTA_SECONDS_FRAME_INTERVAL: float = 3.0 
 
     # --- Caption Similarity Search Configuration ---
     CAPTION_SIMILARITY_SEARCH_TOP_K: int = 3
+    DELTA_SECONDS_FRAME_INTERVAL: float = 3.0 
 
 
 settings = Settings()

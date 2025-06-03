@@ -179,7 +179,7 @@ class VideoProcessor:
             self.video_table,
             iterator=AudioSplitter.create(
                 audio=self.video_table.audio_extract,
-                chunk_duration_sec=30.0,
+                chunk_duration_sec=5.0,
                 overlap_sec=1.0,
                 min_chunk_duration_sec=5.0,
             ),
