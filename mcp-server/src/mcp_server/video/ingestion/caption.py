@@ -3,8 +3,7 @@ from loguru import logger
 from PIL import Image
 
 from mcp_server.config import get_settings
-from mcp_server.video_ingestion.models import UserContent
-from mcp_server.video_ingestion.tools import encode_image
+from mcp_server.video.ingestion.tools import encode_image
 
 settings = get_settings()
 
@@ -26,7 +25,9 @@ class VisualCaptioningModel:
         self.model_name = model_name
         self.client = Groq(api_key=settings.GROQ_API_KEY)
 
-    def caption(self, image: Image.Image | str, prompt: str, verbose: bool = False) -> str:
+    def caption(
+        self, image: Image.Image | str, prompt: str, verbose: bool = False
+    ) -> str:
         """Generate a caption for the given image using the specified prompt.
 
         Args:
@@ -40,13 +41,26 @@ class VisualCaptioningModel:
             If image is provided as a string, it will be loaded and converted to RGB format.
         """
         base64_image = encode_image(image)
-        message = UserContent.from_pair(
-            image=base64_image,
-            prompt=prompt,
-        )
+
         chat_completion = self.client.chat.completions.create(
-            messages=[message.model_dump(by_alias=True)],
-            model=self.model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt,
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                            },
+                        },
+                    ],
+                }
+            ],
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
         )
 
         if verbose:

@@ -6,10 +6,11 @@ import pixeltable as pxt
 from PIL import Image
 from pydantic import BaseModel, Field, field_validator
 
-
 #####################################
 # Table Registry Models
 #####################################
+
+
 class CachedTableMetadata(BaseModel):
     video_cache: str = Field(..., description="Path to the video cache")
     video_table: str = Field(..., description="Root video table")
@@ -69,6 +70,8 @@ class CachedTable:
 ######################################
 # Image Processing Models
 ######################################
+
+
 class Base64Image(BaseModel):
     image: str = Field(description="Base64 encoded image string")
 

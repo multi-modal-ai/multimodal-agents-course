@@ -10,11 +10,11 @@ from pixeltable.functions.video import extract_audio
 from pixeltable.iterators import AudioSplitter
 from pixeltable.iterators.video import FrameIterator
 
-import mcp_server.video_ingestion.registry as registry
-from mcp_server.video_ingestion.functions import caption_image, extract_text_from_chunk
+import mcp_server.video.ingestion.registry as registry
+from mcp_server.video.ingestion.functions import caption_image, extract_text_from_chunk
 
 if TYPE_CHECKING:
-    from mcp_server.video_ingestion.models import CachedTable
+    from mcp_server.video.ingestion.models import CachedTable
 
 logger = logger.bind(name="VideoProcessor")
 
@@ -39,7 +39,9 @@ class VideoProcessor:
         self.video_mapping_idx = video_name
         exists = self._check_if_exists()
         if exists:
-            logger.info(f"Video index '{self.video_mapping_idx}' already exists and is ready for use.")
+            logger.info(
+                f"Video index '{self.video_mapping_idx}' already exists and is ready for use."
+            )
             cached_table: "CachedTable" = registry.get_table(self.video_mapping_idx)
             self.pxt_cache = cached_table.video_cache
             self.video_table = cached_table.video_table
@@ -61,7 +63,9 @@ class VideoProcessor:
                 frames_view_name=self.frames_view_name,
                 audio_view_name=self.audio_view_name,
             )
-            logger.info(f"Creating new video index '{self.video_table_name}' in '{self.pxt_cache}'")
+            logger.info(
+                f"Creating new video index '{self.video_table_name}' in '{self.pxt_cache}'"
+            )
 
     def _check_if_exists(self) -> bool:
         """
@@ -102,7 +106,9 @@ class VideoProcessor:
         )
 
         self.audio_chunks.add_computed_column(
-            transcription=whisper.transcribe(audio=self.audio_chunks.audio_chunk, model="base.en"),
+            transcription=whisper.transcribe(
+                audio=self.audio_chunks.audio_chunk, model="base.en"
+            ),
             if_exists="ignore",
         )
         self.audio_chunks.add_computed_column(
@@ -120,7 +126,9 @@ class VideoProcessor:
         self.frames_view = pxt.create_view(
             self.frames_view_name,
             self.video_table,
-            iterator=FrameIterator.create(video=self.video_table.video, fps=0.5),  # FIXME: move to config
+            iterator=FrameIterator.create(
+                video=self.video_table.video, fps=0.5
+            ),  # FIXME: move to config
             if_exists="ignore",
         )
 
@@ -134,7 +142,7 @@ class VideoProcessor:
         self.frames_view.add_computed_column(
             im_caption=caption_image(
                 image=self.frames_view.frame,
-                prompt="Explain in detail what's in the image.",  # FIXME: move to config
+                prompt="Explain in detail everything you see in the image.",  # FIXME: move to config
             ),
             if_exists="ignore",
         )
@@ -152,7 +160,9 @@ class VideoProcessor:
             video_path (str): The path to the video file.
         """
         if not self.video_table:
-            raise ValueError("Video table is not initialized. Call setup_table() first.")
+            raise ValueError(
+                "Video table is not initialized. Call setup_table() first."
+            )
 
         logger.info(f"Adding video {video_path} to table {self.video_table_name}")
         self.video_table.insert([{"video": video_path}])

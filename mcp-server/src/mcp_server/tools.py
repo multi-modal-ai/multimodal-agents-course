@@ -1,11 +1,13 @@
-from typing import List
+from typing import Dict
+from uuid import uuid4
 
 from loguru import logger
 
-import mcp_server.video_ingestion.registry as registry
 from mcp_server.config import get_settings
-from mcp_server.video_ingestion.models import Base64Image, CachedTable
-from mcp_server.video_ingestion.video_processor import VideoProcessor
+from mcp_server.video.ingestion.models import Base64Image
+from mcp_server.video.ingestion.tools import extract_video_clip
+from mcp_server.video.ingestion.video_processor import VideoProcessor
+from mcp_server.video.video_search_engine import VideoSearchEngine
 
 settings = get_settings()
 logger = logger.bind(name="MCPVideoTools")
@@ -33,123 +35,84 @@ def process_video(video_path: str) -> str:
     return "Video processed successfully"
 
 
-def get_clip_by_speech_sim(
-    video_name: str,
-    user_query: str,
-    top_k: int = settings.SPEECH_SIMILARITY_SEARCH_TOP_K,
-) -> List[dict]:
-    """Get a video clip based on the user query.
+def get_video_clip_from_user_query(video_name: str, user_query: str) -> Dict[str, str]:
+    """Get a video clip based on the user query using speech and caption similarity.
 
     Args:
-        user_query: The user query to search for.
+        video_name (str): The name of the video index.
+        user_query (str): The user query to search for.
 
     Returns:
-        The path to the video clip.
+        Dict[str, str]: Dictionary containing:
+            filename (str): Path to the extracted video clip.
     """
-    video_index: CachedTable = registry.get_table(video_name)
-    if not video_index:
-        raise ValueError(f"Video index {video_name} not found in registry.")
+    search_engine = VideoSearchEngine(video_name)
 
-    sims = video_index.audio_chunks_view.chunk_text.similarity(user_query)
-    results = video_index.audio_chunks_view.select(
-        video_index.audio_chunks_view.pos,
-        video_index.audio_chunks_view.start_time_sec,
-        video_index.audio_chunks_view.end_time_sec,
-        similarity=sims,
-    ).order_by(sims, asc=False)
+    speech_clips = search_engine.search_by_speech(
+        user_query, settings.VIDEO_CLIP_SPEECH_SEARCH_TOP_K
+    )
+    caption_clips = search_engine.search_by_caption(
+        user_query, settings.VIDEO_CLIP_CAPTION_SEARCH_TOP_K
+    )
 
-    video_clips = []
-    top_k_entries = results.limit(top_k).collect()
+    speech_sim = speech_clips[0]["similarity"] if speech_clips else 0
+    caption_sim = caption_clips[0]["similarity"] if caption_clips else 0
 
-    logger.info(top_k_entries)
-    logger.info(len(top_k_entries))
+    video_clip_info = speech_clips[0] if speech_sim > caption_sim else caption_clips[0]
 
-    if len(top_k_entries) > 0:
-        for entry in top_k_entries:
-            logger.info(entry)
-            video_clip_info_dict = {
-                "start_time": float(entry["start_time_sec"]),
-                "end_time": float(entry["end_time_sec"]),
-                "similarity": float(entry["similarity"]),
-            }
-            video_clips.append(video_clip_info_dict)
+    video_clip = extract_video_clip(
+        video_path=video_name,
+        start_time=video_clip_info["start_time"],
+        end_time=video_clip_info["end_time"],
+        output_path=f"./videos/{str(uuid4())}.mp4",
+    )
 
-    return video_clips
+    return {"filename": video_clip.filename}
 
 
-def get_clip_by_image_sim(
-    video_name: str,
-    image_base64: Base64Image,
-    top_k: int = settings.IMAGE_SIMILARITY_SEARCH_TOP_K,
-) -> List[dict]:
-    """Get a video clip based on the user query using image similarity.
+def get_video_clip_from_image(
+    video_name: str, user_image: Base64Image
+) -> Dict[str, str]:
+    """Get a video clip based on similarity to a provided image.
 
     Args:
-        video_name: The name of the video index.
-        user_query: The user query to search for.
-        top_k: The number of top results to return.
+        video_name (str): The name of the video index to search in.
+        user_image (Base64Image): The query image encoded in base64 format.
 
     Returns:
-        A string listing the paths to the video clips.
+        Dict[str, str]: Dictionary containing:
+            filename (str): Path to the extracted video clip.
     """
-    video_index: CachedTable = registry.get_table(video_name)
-    if not video_index:
-        raise ValueError(f"Video index {video_name} not found in registry.")
+    search_engine = VideoSearchEngine(video_name)
+    image_clips = search_engine.search_by_image(
+        user_image, settings.VIDEO_CLIP_IMAGE_SEARCH_TOP_K
+    )
 
-    sims = video_index.frames_view.image.similarity(image_base64.to_pil())
-    results = video_index.frames_view.select(
-        video_index.frames_view.pos_msec,
-        video_index.frames_view.frame,
-        similarity=sims,
-    ).order_by(sims, asc=False)
+    video_clip = extract_video_clip(
+        video_path=video_name,
+        start_time=image_clips[0]["start_time"],
+        end_time=image_clips[0]["end_time"],
+        output_path=f"./videos/{str(uuid4())}.mp4",
+    )
 
-    video_clips = []
-    top_k_entries = results.limit(top_k).collect()
-    if len(top_k_entries) > 0:
-        for entry in top_k_entries:
-            video_clip_info_dict = {
-                "start_time": entry["pos_msec"] / 1000.0 - settings.DELTA_SECONDS_FRAME_INTERVAL,
-                "end_time": entry["pos_msec"] / 1000.0 + settings.DELTA_SECONDS_FRAME_INTERVAL,
-                "similarity": float(entry["similarity"]),
-            }
-            video_clips.append(video_clip_info_dict)
-    return video_clips
+    return {"filename": video_clip.filename}
 
 
-def get_clip_by_caption_sim(
-    video_name: str,
-    user_query: str,
-    top_k: int = settings.CAPTION_SIMILARITY_SEARCH_TOP_K,
-) -> List[dict]:
-    """Get a video clip based on the user query using caption similarity.
+def ask_question_about_video(video_name: str, user_query: str) -> Dict[str, str]:
+    """Get relevant captions from the video based on the user's question.
 
     Args:
-        video_name: The name of the video index.
-        user_query: The user query to search for.
-        top_k: The number of top results to return.
+        video_name (str): The name of the video index to search in.
+        user_query (str): The question to search for relevant captions.
 
     Returns:
-        A string listing the paths to the video clips.
+        Dict[str, str]: Dictionary containing:
+            answer (str): Concatenated relevant captions from the video.
     """
-    video_index: CachedTable = registry.get_table(video_name)
-    if not video_index:
-        raise ValueError(f"Video index {video_name} not found in registry.")
+    search_engine = VideoSearchEngine(video_name)
+    caption_info = search_engine.get_caption_info(
+        user_query, settings.QUESTION_ANSWER_TOP_K
+    )
 
-    sims = video_index.frames_view.im_caption.similarity(user_query)
-    results = video_index.frames_view.select(
-        video_index.frames_view.pos_msec,
-        video_index.frames_view.im_caption,
-        similarity=sims,
-    ).order_by(sims, asc=False)
-
-    video_clips = []
-    top_k_entries = results.limit(top_k).collect()
-    if len(top_k_entries) > 0:
-        for entry in top_k_entries:
-            video_clip_info_dict = {
-                "start_time": entry["pos_msec"] / 1000.0 - settings.DELTA_SECONDS_FRAME_INTERVAL,
-                "end_time": entry["pos_msec"] / 1000.0 + settings.DELTA_SECONDS_FRAME_INTERVAL,
-                "similarity": float(entry["similarity"]),
-            }
-            video_clips.append(video_clip_info_dict)
-    return video_clips
+    answer = "\n".join(entry["caption"] for entry in caption_info)
+    return {"answer": answer}

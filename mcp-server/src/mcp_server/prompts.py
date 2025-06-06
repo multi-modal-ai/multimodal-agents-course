@@ -1,14 +1,8 @@
 import opik
 from loguru import logger
 
-from mcp_server.config import get_settings
+client = opik.Opik()
 
-settings = get_settings()
-opik.configure(api_key=settings.OPIK_API_KEY, workspace=settings.OPIK_WORKSPACE)
-
-client = opik.Opik(
-    project_name=settings.OPIK_PROJECT,
-)
 logger = logger.bind(name="Prompts")
 
 

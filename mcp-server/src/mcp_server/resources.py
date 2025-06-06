@@ -1,5 +1,5 @@
-from mcp_server.video_ingestion.models import CachedTable, CachedTableMetadata
-from mcp_server.video_ingestion.registry import get_registry
+from mcp_server.video.ingestion.models import CachedTable, CachedTableMetadata
+from mcp_server.video.ingestion.registry import get_registry
 
 
 def list_tables() -> str:
