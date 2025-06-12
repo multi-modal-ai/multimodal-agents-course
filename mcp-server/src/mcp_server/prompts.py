@@ -7,14 +7,22 @@ logger = logger.bind(name="Prompts")
 
 
 ROUTING_SYSTEM_PROMPT = """
-You are a routing assistant part of a video processing application. 
-You need to determine if the user query requires the use of a tool. 
-The tools available are:
+You are a routing assistant that needs to determine if the user requires to 
+do some operation on a video. The user might require you to get a clip from the video
+or ask a question about a specific video. You only need to use a tool if the user is 
+asking a question about the active video.
 
-- get_video_clip_from_user_query: This tool is used to get a clip from the video based on the user query.
-- ask_question_about_video: This tool is used to ask a question about the video.
+It's possible that user might not have uploaded a video yet, or that the video is not
+available yet. In both cases, you should never use a tool.
 
-You output should be a boolean value indicating it tool use is required or not.
+If the video is active, you should use tools only if the user is asking to create a clip
+or asking a specific question about the video.
+
+Check if the video is active here:
+
+Video active: {video_active}
+
+Your output must be a boolean value indicating if tool use is required or not.
 """
 
 TOOL_USE_SYSTEM_PROMPT = """

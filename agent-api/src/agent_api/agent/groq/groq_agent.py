@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import instructor
+import opik
+from opik import opik_context
 from groq import Groq
 from loguru import logger
 
@@ -34,12 +36,14 @@ class GroqAgent(BaseAgent):
         self.instructor_client = instructor.from_groq(
             self.client, mode=instructor.Mode.JSON
         )
+        self.thread_id = str(uuid.uuid4())
 
     async def _get_tools(self) -> List[Dict[str, Any]]:
         """Transform and return the list of available tools."""
         tools = await self.discover_tools()
         return [transform_tool_definition(tool) for tool in tools]
 
+    @opik.track(name="build-chat-history")
     def _build_chat_history(
         self, system_prompt: str, message: str
     ) -> List[Dict[str, str]]:
@@ -53,19 +57,23 @@ class GroqAgent(BaseAgent):
             {"role": "user", "content": message},
         ]
 
-    def _route_query(self, message: str) -> bool:
+    @opik.track(name="router", type="llm")
+    def _route_query(self, message: str, video_path: str) -> bool:
         """Determine if the message requires tool usage."""
+        video_active = video_path is not None
+        routing_system_prompt = self.routing_system_prompt.format(video_active=video_active)
         response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_ROUTING_MODEL,
             response_model=RoutingResponseModel,
             messages=[
-                {"role": "system", "content": self.routing_system_prompt},
+                {"role": "system", "content": routing_system_prompt},
                 {"role": "user", "content": message},
             ],
             max_completion_tokens=20,
         )
         return response.tool_use
 
+    @opik.track(name="tool-use", type="tool")
     async def _run_with_tool(self, message: str, video_path: str) -> str:
         """Execute chat completion with tool usage."""
         tool_use_system_prompt = self.tool_use_system_prompt.format(
@@ -119,6 +127,7 @@ class GroqAgent(BaseAgent):
         )
         return second_response.choices[0].message.content
 
+    @opik.track(name="generate-response", type="llm")
     def _run_general(self, message: str) -> str:
         """Execute general chat completion without tool usage."""
         chat_history = self._build_chat_history(self.general_system_prompt, message)
@@ -129,6 +138,7 @@ class GroqAgent(BaseAgent):
         )
         return response.choices[0].message.content
 
+    @opik.track(name="memory-insertion", type="general")
     def _add_to_memory(self, role: str, content: str) -> None:
         """Add a message to the agent's memory."""
         self.memory.insert(
@@ -140,11 +150,16 @@ class GroqAgent(BaseAgent):
             )
         )
 
+    @opik.track(name="chat", type="general")
     async def chat(self, message: str, video_path: str) -> str:
         """Process a chat message and return the response."""
+        opik_context.update_current_trace(
+            thread_id=self.thread_id
+        )
+        
         self._add_to_memory("user", message)
 
-        tool_use = self._route_query(message)
+        tool_use = self._route_query(message, video_path)
 
         if tool_use:
             response = await self._run_with_tool(message, video_path)

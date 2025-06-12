@@ -14,13 +14,9 @@ class Settings(BaseSettings):
     GROQ_GENERAL_MODEL: str = "llama3-70b-8192"
 
     # --- Comet ML & Opik Configuration ---
-    COMET_API_KEY: str | None = Field(
-        default=None, description="API key for Comet ML and Opik services."
-    )
-    COMET_PROJECT: str = Field(
-        default="multimodal-agent-course",
-        description="Project name for Comet ML and Opik tracking.",
-    )
+    OPIK_API_KEY: str
+    OPIK_WORKSPACE: str = "default"
+    OPIK_PROJECT: str = "kubrick-api"
 
     # --- Memory Configuration ---
     AGENT_MEMORY_SIZE: int = 20
