@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional
 
 import instructor
 import opik
-from opik import opik_context
 from groq import Groq
 from loguru import logger
+from opik import opik_context
 
 from agent_api.agent.base_agent import BaseAgent
 from agent_api.agent.groq.groq_tool import transform_tool_definition
@@ -45,23 +45,48 @@ class GroqAgent(BaseAgent):
 
     @opik.track(name="build-chat-history")
     def _build_chat_history(
-        self, system_prompt: str, message: str
-    ) -> List[Dict[str, str]]:
+        self, system_prompt: str, message: str, image_base64: str | None = None
+    ) -> List[Dict[str, Any]]:
         """Build chat history with system prompt and recent memory records."""
-        return [
+
+        history = [
             {"role": "system", "content": system_prompt},
             *[
                 {"role": record.role, "content": record.content}
                 for record in self.memory.get_latest(n=settings.AGENT_MEMORY_SIZE)
             ],
-            {"role": "user", "content": message},
         ]
+
+        if image_base64:
+            history.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": message,
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}",
+                            },
+                        },
+                    ],
+                }
+            )
+        else:
+            history.append({"role": "user", "content": message})
+
+        return history
 
     @opik.track(name="router", type="llm")
     def _route_query(self, message: str, video_path: str) -> bool:
         """Determine if the message requires tool usage."""
         video_active = video_path is not None
-        routing_system_prompt = self.routing_system_prompt.format(video_active=video_active)
+        routing_system_prompt = self.routing_system_prompt.format(
+            video_active=video_active
+        )
         response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_ROUTING_MODEL,
             response_model=RoutingResponseModel,
@@ -127,6 +152,18 @@ class GroqAgent(BaseAgent):
         )
         return second_response.choices[0].message.content
 
+    def _run_with_image(self, message: str, image_base64: str) -> str:
+        """Execute chat completion with image usage."""
+        chat_history = self._build_chat_history(
+            self.general_system_prompt, message, image_base64
+        )
+
+        response = self.client.chat.completions.create(
+            model=settings.GROQ_IMAGE_MODEL,
+            messages=chat_history,
+        )
+        return response.choices[0].message.content
+
     @opik.track(name="generate-response", type="llm")
     def _run_general(self, message: str) -> str:
         """Execute general chat completion without tool usage."""
@@ -151,17 +188,22 @@ class GroqAgent(BaseAgent):
         )
 
     @opik.track(name="chat", type="general")
-    async def chat(self, message: str, video_path: str) -> str:
+    async def chat(
+        self,
+        message: str,
+        video_path: str | None = None,
+        image_base64: str | None = None,
+    ) -> str:
         """Process a chat message and return the response."""
-        opik_context.update_current_trace(
-            thread_id=self.thread_id
-        )
-        
+        opik_context.update_current_trace(thread_id=self.thread_id)
+
         self._add_to_memory("user", message)
 
         tool_use = self._route_query(message, video_path)
 
-        if tool_use:
+        if image_base64:
+            response = self._run_with_image(message, image_base64)
+        elif tool_use:
             response = await self._run_with_tool(message, video_path)
         else:
             response = self._run_general(message)
