@@ -34,17 +34,15 @@ class GroqAgent(BaseAgent):
         self.instructor_client = instructor.from_groq(
             self.client, mode=instructor.Mode.JSON
         )
-        if not memory:
-            self.memory = Memory(name=name)
-        else:
-            self.memory = memory
 
     async def _get_tools(self) -> List[Dict[str, Any]]:
         """Transform and return the list of available tools."""
         tools = await self.discover_tools()
         return [transform_tool_definition(tool) for tool in tools]
 
-    def _build_chat_history(self, system_prompt: str, message: str) -> List[Dict[str, str]]:
+    def _build_chat_history(
+        self, system_prompt: str, message: str
+    ) -> List[Dict[str, str]]:
         """Build chat history with system prompt and recent memory records."""
         return [
             {"role": "system", "content": system_prompt},
@@ -70,7 +68,9 @@ class GroqAgent(BaseAgent):
 
     async def _run_with_tool(self, message: str, video_path: str) -> str:
         """Execute chat completion with tool usage."""
-        tool_use_system_prompt = self.tool_use_system_prompt.format(video_path=video_path)
+        tool_use_system_prompt = self.tool_use_system_prompt.format(
+            video_path=video_path
+        )
         chat_history = self._build_chat_history(tool_use_system_prompt, message)
 
         response = self.client.chat.completions.create(
@@ -92,12 +92,17 @@ class GroqAgent(BaseAgent):
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
-            
-            async with self.mcp_client as _:
-                mcp_response = await self.mcp_client.call_tool(
-                    function_name, function_args
-                )
-                function_response = mcp_response[0].text
+
+            try:
+                async with self.mcp_client as _:
+                    mcp_response = await self.mcp_client.call_tool(
+                        function_name, function_args
+                    )
+                    function_response = mcp_response[0].text
+            except Exception as e:
+                logger.error(f"Error calling tool {function_name}: {str(e)}")
+                function_response = f"Error executing tool {function_name}: {str(e)}"
+
             chat_history.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -108,9 +113,9 @@ class GroqAgent(BaseAgent):
             )
 
         second_response = self.client.chat.completions.create(
-            model=settings.GROQ_TOOL_USE_MODEL, 
+            model=settings.GROQ_TOOL_USE_MODEL,
             messages=chat_history,
-            
+            max_completion_tokens=4096,
         )
         return second_response.choices[0].message.content
 

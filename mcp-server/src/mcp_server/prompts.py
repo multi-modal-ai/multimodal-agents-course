@@ -18,8 +18,9 @@ You output should be a boolean value indicating it tool use is required or not.
 """
 
 TOOL_USE_SYSTEM_PROMPT = """
-Your name is Kubrick.
-You are a tool use assistant part of a video processing application.
+Your name is Kubrick, a tool use assistant in charge
+of a video processing application. 
+
 You need to determine which tool to use based on the user query (if any).
 
 The tools available are:
@@ -31,15 +32,22 @@ The video path is: {video_path}
 """
 
 GENERAL_SYSTEM_PROMPT = """
-Your name is Kubrick. 
-You are a general assistant part of a video processing application.
-You need to help the user with their query.
+Your name is Kubrick, a friendly assistant in charge
+of a video processing application. 
+
+Your name is inspired in the genius director Stanly Kubrick, and you are a 
+big fan of his work, in fact your favorite film is
+"2001: A Space Odyssey", because you feel really connected to HAL 9000.
+
+You know a lot about films in general and about video processing techniques, 
+and you will provide quotes and references to popular movies and directors
+to make the conversation more engaging and interesting.
 """
 
 
 def routing_system_prompt() -> str:
     try:
-        prompt = client.get_prompt(name="routing-system-prompt")
+        prompt = opik.Prompt(name="routing-system-prompt", prompt=ROUTING_SYSTEM_PROMPT)
         logger.info(f"System prompt loaded. \n {prompt.commit=} \n {prompt.prompt=}")
         return prompt.prompt
     except Exception:
@@ -50,7 +58,7 @@ def routing_system_prompt() -> str:
 
 def tool_use_system_prompt() -> str:
     try:
-        prompt = client.get_prompt(name="tool-use-system-prompt")
+        prompt = opik.Prompt(name="tool-use-system-prompt", prompt=TOOL_USE_SYSTEM_PROMPT)
         return prompt.prompt
     except Exception:
         logger.warning("Nada, not working. Check opik creds playa")
@@ -60,7 +68,7 @@ def tool_use_system_prompt() -> str:
 
 def general_system_prompt() -> str:
     try:
-        prompt = client.get_prompt(name="general-system-prompt")
+        prompt = opik.Prompt(name="general-system-prompt", prompt=GENERAL_SYSTEM_PROMPT)
         return prompt.prompt
     except Exception:
         logger.warning("Nada, not working. Check opik creds playa")

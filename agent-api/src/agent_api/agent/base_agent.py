@@ -20,7 +20,7 @@ class BaseAgent(ABC):
     ):
         self.name = name
         self.mcp_client = Client(mcp_server)
-        # self.memory = memory if memory else Memory(name)
+        self.memory = memory if memory else Memory(name)
         self.disable_tools = disable_tools if disable_tools else []
         
         self.tools = None
