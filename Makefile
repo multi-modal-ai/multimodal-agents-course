@@ -4,8 +4,6 @@ endif
 
 include .env	
 	
-# --- Infrastructure ---
-
 infrastructure-build:
 	docker compose build
 

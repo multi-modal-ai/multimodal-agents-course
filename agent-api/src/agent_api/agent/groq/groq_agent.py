@@ -34,6 +34,10 @@ class GroqAgent(BaseAgent):
         self.instructor_client = instructor.from_groq(
             self.client, mode=instructor.Mode.JSON
         )
+        if not memory:
+            self.memory = Memory(name=name)
+        else:
+            self.memory = memory
 
     async def _get_tools(self) -> List[Dict[str, Any]]:
         """Transform and return the list of available tools."""
@@ -44,10 +48,10 @@ class GroqAgent(BaseAgent):
         """Build chat history with system prompt and recent memory records."""
         return [
             {"role": "system", "content": system_prompt},
-            # *[
-            #     {"role": record.role, "content": record.content}
-            #     for record in self.memory.get_latest(n=settings.AGENT_MEMORY_SIZE)
-            # ],
+            *[
+                {"role": record.role, "content": record.content}
+                for record in self.memory.get_latest(n=settings.AGENT_MEMORY_SIZE)
+            ],
             {"role": "user", "content": message},
         ]
 
@@ -133,7 +137,7 @@ class GroqAgent(BaseAgent):
 
     async def chat(self, message: str, video_path: str) -> str:
         """Process a chat message and return the response."""
-        #self._add_to_memory("user", message)
+        self._add_to_memory("user", message)
 
         tool_use = self._route_query(message)
 
@@ -142,5 +146,5 @@ class GroqAgent(BaseAgent):
         else:
             response = self._run_general(message)
 
-        # self._add_to_memory("assistant", response)
+        self._add_to_memory("assistant", response)
         return response
