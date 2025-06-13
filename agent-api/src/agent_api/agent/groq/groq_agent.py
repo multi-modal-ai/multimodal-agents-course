@@ -152,6 +152,7 @@ class GroqAgent(BaseAgent):
         )
         return second_response.choices[0].message.content
 
+    @opik.track(name="general-response-with-image", type="llm")
     def _run_with_image(self, message: str, image_base64: str) -> str:
         """Execute chat completion with image usage."""
         chat_history = self._build_chat_history(
