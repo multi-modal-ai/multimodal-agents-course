@@ -197,17 +197,23 @@ class GroqAgent(BaseAgent):
     ) -> str:
         """Process a chat message and return the response."""
         opik_context.update_current_trace(thread_id=self.thread_id)
-
         self._add_to_memory("user", message)
-
-        tool_use = self._route_query(message, video_path)
 
         if image_base64:
             response = self._run_with_image(message, image_base64)
-        elif tool_use:
-            response = await self._run_with_tool(message, video_path)
-        else:
-            response = self._run_general(message)
+            self._add_to_memory("assistant", response)
+            return response
 
+        if video_path:
+            tool_use = self._route_query(message, video_path)
+            response = (
+                await self._run_with_tool(message, video_path)
+                if tool_use
+                else await self._run_general(message)
+            )
+            self._add_to_memory("assistant", response)
+            return response
+
+        response = self._run_general(message)
         self._add_to_memory("assistant", response)
         return response
