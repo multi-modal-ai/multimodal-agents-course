@@ -209,7 +209,7 @@ class GroqAgent(BaseAgent):
             response = (
                 await self._run_with_tool(message, video_path)
                 if tool_use
-                else await self._run_general(message)
+                else self._run_general(message)
             )
             self._add_to_memory("assistant", response)
             return response
