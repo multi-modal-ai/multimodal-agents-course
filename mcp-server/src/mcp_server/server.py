@@ -78,6 +78,3 @@ mcp = FastMCP("VideoProcessor")
 add_mcp_prompts(mcp)
 add_mcp_tools(mcp)
 add_mcp_resources(mcp)
-
-if __name__ == "__main__":
-    mcp.run(host="0.0.0.0", port=9090, transport="streamable-http")

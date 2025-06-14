@@ -11,7 +11,11 @@ from opik import opik_context
 
 from agent_api.agent.base_agent import BaseAgent
 from agent_api.agent.groq.groq_tool import transform_tool_definition
-from agent_api.agent.groq.models import RoutingResponseModel
+from agent_api.agent.groq.models import (
+    GeneralResponseModel,
+    RoutingResponseModel,
+    VideoClipResponseModel,
+)
 from agent_api.agent.memory import Memory, MemoryRecord
 from agent_api.config import settings
 
@@ -48,7 +52,6 @@ class GroqAgent(BaseAgent):
         self, system_prompt: str, message: str, image_base64: str | None = None
     ) -> List[Dict[str, Any]]:
         """Build chat history with system prompt and recent memory records."""
-
         history = [
             {"role": "system", "content": system_prompt},
             *[
@@ -78,6 +81,7 @@ class GroqAgent(BaseAgent):
         else:
             history.append({"role": "user", "content": message})
 
+        logger.info(f"Chat history: {history}")
         return history
 
     @opik.track(name="router", type="llm")
@@ -120,8 +124,6 @@ class GroqAgent(BaseAgent):
         if not tool_calls:
             return response_message.content
 
-        chat_history.append(response_message)
-
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
@@ -145,12 +147,20 @@ class GroqAgent(BaseAgent):
                 }
             )
 
-        second_response = self.client.chat.completions.create(
-            model=settings.GROQ_TOOL_USE_MODEL,
-            messages=chat_history,
-            max_completion_tokens=4096,
-        )
-        return second_response.choices[0].message.content
+        if function_name == "get_video_clip_from_user_query":
+            second_response = self.instructor_client.chat.completions.create(
+                model=settings.GROQ_TOOL_USE_MODEL,
+                messages=chat_history,
+                response_model=VideoClipResponseModel,
+            )
+        else:
+            second_response = self.instructor_client.chat.completions.create(
+                model=settings.GROQ_TOOL_USE_MODEL,
+                messages=chat_history,
+                response_model=GeneralResponseModel,
+            )
+        logger.info(f"Second response: {second_response}")
+        return second_response
 
     @opik.track(name="general-response-with-image", type="llm")
     def _run_with_image(self, message: str, image_base64: str) -> str:
@@ -170,11 +180,12 @@ class GroqAgent(BaseAgent):
         """Execute general chat completion without tool usage."""
         chat_history = self._build_chat_history(self.general_system_prompt, message)
 
-        response = self.client.chat.completions.create(
+        response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_GENERAL_MODEL,
             messages=chat_history,
+            response_model=GeneralResponseModel,
         )
-        return response.choices[0].message.content
+        return response
 
     @opik.track(name="memory-insertion", type="general")
     def _add_to_memory(self, role: str, content: str) -> None:
@@ -197,23 +208,26 @@ class GroqAgent(BaseAgent):
     ) -> str:
         """Process a chat message and return the response."""
         opik_context.update_current_trace(thread_id=self.thread_id)
-        self._add_to_memory("user", message)
 
         if image_base64:
             response = self._run_with_image(message, image_base64)
-            self._add_to_memory("assistant", response)
+            self._add_to_memory("assistant", response.content)
             return response
 
         if video_path:
             tool_use = self._route_query(message, video_path)
+            logger.info(f"Tool use: {tool_use}")
             response = (
                 await self._run_with_tool(message, video_path)
                 if tool_use
                 else self._run_general(message)
             )
-            self._add_to_memory("assistant", response)
+            self._add_to_memory("assistant", response.content)
             return response
 
         response = self._run_general(message)
-        self._add_to_memory("assistant", response)
+        
+        self._add_to_memory("user", message)
+        self._add_to_memory("assistant", response.content)
+        
         return response
