@@ -1,13 +1,25 @@
+from loguru import logger
 import pixeltable as pxt
+from groq import RateLimitError
 
 from mcp_server.video.ingestion.caption import VisualCaptioningModel
 
 video_captioner = VisualCaptioningModel()
 
-
+# TODO: Here, add some internal batching logic to avoid rate limit erros
 @pxt.udf
-def caption_image(image: pxt.type_system.Image, prompt: pxt.type_system.String) -> str:
-    return video_captioner.caption(image, prompt, True)
+async def caption_image(
+    image: pxt.type_system.Image, prompt: pxt.type_system.String
+) -> str:
+    try:
+        im_caption = await video_captioner.caption(image, prompt)
+        return im_caption
+    except RateLimitError as e:
+        logger.error(f"Rate limit error after exponential backoff: {e}")
+        return ""
+    except Exception as e:
+        logger.error(f"Error captioning image: {e}")
+        return ""
 
 
 @pxt.udf

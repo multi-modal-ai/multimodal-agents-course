@@ -14,7 +14,6 @@ services:
       - HF_HOME=/root/.cache/huggingface
     volumes:
       - ./.vscode:/app/.vscode
-      - ~/.pixeltable:/root/.pixeltable
       - ./videos:/app/videos
       - ~/.cache:/root/.cache
       - ~/.cache/huggingface:/root/.cache/huggingface

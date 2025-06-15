@@ -43,7 +43,6 @@ class GroqAgent(BaseAgent):
         self.thread_id = str(uuid.uuid4())
 
     async def _get_tools(self) -> List[Dict[str, Any]]:
-        """Transform and return the list of available tools."""
         tools = await self.discover_tools()
         return [transform_tool_definition(tool) for tool in tools]
 
@@ -51,7 +50,6 @@ class GroqAgent(BaseAgent):
     def _build_chat_history(
         self, system_prompt: str, message: str, image_base64: str | None = None
     ) -> List[Dict[str, Any]]:
-        """Build chat history with system prompt and recent memory records."""
         history = [
             {"role": "system", "content": system_prompt},
             *[
@@ -80,22 +78,15 @@ class GroqAgent(BaseAgent):
             )
         else:
             history.append({"role": "user", "content": message})
-
-        logger.info(f"Chat history: {history}")
         return history
 
     @opik.track(name="router", type="llm")
     def _route_query(self, message: str, video_path: str) -> bool:
-        """Determine if the message requires tool usage."""
-        video_active = video_path is not None
-        routing_system_prompt = self.routing_system_prompt.format(
-            video_active=video_active
-        )
         response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_ROUTING_MODEL,
             response_model=RoutingResponseModel,
             messages=[
-                {"role": "system", "content": routing_system_prompt},
+                {"role": "system", "content": self.routing_system_prompt},
                 {"role": "user", "content": message},
             ],
             max_completion_tokens=20,
@@ -103,7 +94,7 @@ class GroqAgent(BaseAgent):
         return response.tool_use
 
     @opik.track(name="tool-use", type="tool")
-    async def _run_with_tool(self, message: str, video_path: str) -> str:
+    async def _run_with_tool(self, message: str, video_path: str, image_base64: str | None = None) -> str:
         """Execute chat completion with tool usage."""
         tool_use_system_prompt = self.tool_use_system_prompt.format(
             video_path=video_path
@@ -210,7 +201,14 @@ class GroqAgent(BaseAgent):
         opik_context.update_current_trace(thread_id=self.thread_id)
 
         if image_base64:
-            response = self._run_with_image(message, image_base64)
+            tool_use = self._route_query(message, video_path)
+            logger.info(f"Tool use: {tool_use}")
+            response = (
+                await self._run_with_tool(message, video_path)
+                if tool_use
+                else self._run_with_image(message, image_base64)
+            )
+            self._add_to_memory("user", message)
             self._add_to_memory("assistant", response.content)
             return response
 
@@ -222,6 +220,7 @@ class GroqAgent(BaseAgent):
                 if tool_use
                 else self._run_general(message)
             )
+            self._add_to_memory("user", message)
             self._add_to_memory("assistant", response.content)
             return response
 

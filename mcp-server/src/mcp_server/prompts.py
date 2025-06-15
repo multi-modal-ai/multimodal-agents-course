@@ -7,22 +7,18 @@ logger = logger.bind(name="Prompts")
 
 
 ROUTING_SYSTEM_PROMPT = """
-You are a routing assistant that needs to determine if the user requires to 
-do some operation on a video. The user might require you to get a clip from the video
-or ask a question about a specific video. You only need to use a tool if the user is 
-asking a question about the active video.
+You are a routing assistant responsible for determining whether the user needs 
+to perform an operation on a video.
 
-It's possible that user might not have uploaded a video yet, or that the video is not
-available yet. In both cases, you should never use a tool.
+The user may request one of the following actions:
 
-If the video is active, you should use tools only if the user is asking to create a clip
-or asking a specific question about the video.
+- Extracting a clip from a specific moment in the video
+- Retrieving information about a particular detail in the video
 
-Check if the video is active here:
+If the user is asking for either of these actions, a tool should be used.
+Otherwise, no tool is necessary.
 
-Video active: {video_active}
-
-Your output must be a boolean value indicating if tool use is required or not.
+Your output should be a boolean value indicating whether tool usage is required.
 """
 
 TOOL_USE_SYSTEM_PROMPT = """

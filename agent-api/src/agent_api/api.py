@@ -3,12 +3,19 @@ from enum import Enum
 from pathlib import Path
 from uuid import uuid4
 
-from agent_api.agent import GroqAgent
-from agent_api.config import settings
-from agent_api.models import ChatRequest, ChatResponse, ProcessVideoRequest, ProcessVideoResponse, ResetMemoryResponse
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastmcp.client import Client
 from loguru import logger
+
+from agent_api.agent import GroqAgent
+from agent_api.config import settings
+from agent_api.models import (
+    ChatRequest,
+    ChatResponse,
+    ProcessVideoRequest,
+    ProcessVideoResponse,
+    ResetMemoryResponse,
+)
 
 
 class TaskStatus(str, Enum):
@@ -77,7 +84,9 @@ async def process_video(request: ProcessVideoRequest, bg_tasks: BackgroundTasks)
         try:
             mcp_client = Client(settings.MCP_SERVER)
             async with mcp_client:
-                _ = await mcp_client.call_tool("process_video", {"video_path": request.video_path})
+                _ = await mcp_client.call_tool(
+                    "process_video", {"video_path": request.video_path}
+                )
         except Exception as e:
             logger.error(f"Error processing video {video_path}: {e}")
             bg_task_states[task_id] = TaskStatus.FAILED
@@ -104,7 +113,10 @@ async def chat(request: ChatRequest, fastapi_request: Request):
 
     try:
         response = await agent.chat(request.message, request.video_path)
-        return ChatResponse(response=response)
+        response_data = {"response": response.content}
+        if hasattr(response, "clip_path"):
+            response_data["clip_path"] = response.clip_path
+        return ChatResponse(**response_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -1,12 +1,16 @@
-from groq import Groq
-from loguru import logger
+from groq import AsyncGroq, RateLimitError
 from PIL import Image
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from mcp_server.config import get_settings
 from mcp_server.video.ingestion.tools import encode_image
 
 settings = get_settings()
-
 
 class VisualCaptioningModel:
     """A model for generating captions from images using Groq's vision-language models.
@@ -23,9 +27,15 @@ class VisualCaptioningModel:
 
     def __init__(self, model_name: str = settings.GROQ_VLM_MODEL):
         self.model_name = model_name
-        self.client = Groq(api_key=settings.GROQ_API_KEY)
+        self.client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
-    def caption(self, image: Image.Image | str, prompt: str, verbose: bool = False) -> str:
+    @retry(
+        retry=retry_if_exception_type(RateLimitError),
+        wait=wait_exponential_jitter(initial=10, max=60),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
+    async def caption(self, image: Image.Image | str, prompt: str) -> str:
         """Generate a caption for the given image using the specified prompt.
 
         Args:
@@ -40,7 +50,7 @@ class VisualCaptioningModel:
         """
         base64_image = encode_image(image)
 
-        chat_completion = self.client.chat.completions.create(
+        chat_completion = await self.client.chat.completions.create(
             messages=[
                 {
                     "role": "user",
@@ -60,10 +70,6 @@ class VisualCaptioningModel:
             ],
             model=settings.GROQ_VLM_MODEL,
         )
-
-        if verbose:
-            logger.info("Image successfully captioned")
-
         return chat_completion.choices[0].message.content
 
     def __repr__(self):

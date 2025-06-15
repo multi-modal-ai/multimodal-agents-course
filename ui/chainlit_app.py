@@ -1,8 +1,10 @@
 import asyncio
+import base64
 import os
 import shutil
 from enum import Enum
 from typing import List
+from loguru import logger
 
 import aiohttp
 import chainlit as cl
@@ -41,7 +43,7 @@ async def spinner_func(base_msg: str, frames: List[str], interval: float = 0.8) 
             progress += 1
             await asyncio.sleep(interval)
     except asyncio.CancelledError:
-        await msg.update(content=base_msg)
+        await msg.update()
 
 
 @cl.on_chat_start
@@ -74,15 +76,22 @@ async def start():
                 data = await response.json()
                 task_id = data.get("task_id")
                 while True:
-                    async with session.get(f"{API_BASE_URL}/task-status/{task_id}") as status_resp:
+                    async with session.get(
+                        f"{API_BASE_URL}/task-status/{task_id}"
+                    ) as status_resp:
                         if status_resp.status != 200:
-                            await cl.Message(content="Error checking task status").send()
+                            await cl.Message(
+                                content="Error checking task status"
+                            ).send()
                             break
                         status_data = await status_resp.json()
                         status = status_data.get("status")
 
                         if TaskStatus(status) == TaskStatus.IN_PROGRESS:
-                            if LOADING_SPINNER_TASK is None or LOADING_SPINNER_TASK.done():
+                            if (
+                                LOADING_SPINNER_TASK is None
+                                or LOADING_SPINNER_TASK.done()
+                            ):
                                 LOADING_SPINNER_TASK = asyncio.create_task(
                                     spinner_func(
                                         base_msg="Processing your video...",
@@ -97,7 +106,12 @@ async def start():
                                     await LOADING_SPINNER_TASK
                                 except asyncio.CancelledError:
                                     pass
-                            await cl.Message(content="Video processed successfully!").send()
+                            await cl.Message(
+                                content="Video processed successfully!",
+                                elements=[
+                                    cl.Video(path=dest_path, name="Video", display="inline"),
+                                ],
+                            ).send()
                             break
                         elif TaskStatus(status) == TaskStatus.FAILED:
                             if LOADING_SPINNER_TASK:
@@ -108,7 +122,9 @@ async def start():
                                     pass
                             await cl.Message(content="Video processing failed.").send()
                             break
-                    await asyncio.sleep(DEFAULT_RETRY_INTERVAL_SEC)  # wait before polling
+                    await asyncio.sleep(
+                        DEFAULT_RETRY_INTERVAL_SEC
+                    )  # wait before polling
 
             cl.user_session.set("video_path", dest_path)
 
@@ -119,14 +135,40 @@ async def start():
 @cl.on_message
 async def main(message: cl.Message):
     try:
+        images = [f for f in message.elements if "image" in f.mime] 
+        if images:
+            with open(images[0].path, "rb") as f:
+                img_bytes = f.read()
+                image_base64 = base64.b64encode(img_bytes).decode("utf-8")
+        else:
+            image_base64 = None
+
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{API_BASE_URL}/chat",
-                json={"message": message.content, "video_path": cl.user_session.get("video_path")},
+                json={
+                    "message": message.content,
+                    "video_path": cl.user_session.get("video_path"),
+                    "image_base64": image_base64,
+                },
             ) as response:
                 if response.status == 200:
                     data = await response.json()
+                    logger.info(f"Data: {data}")
                     await cl.Message(content=data["response"]).send()
+
+                    if "clip_path" in data:
+                        video_path = data["clip_path"]
+                        if os.path.exists(video_path):
+                            await cl.Message(
+                                content="Here is an video file",
+                                elements=[cl.Video(path=video_path, name="Video", display="inline")],
+                            ).send()
+                        else:
+                            await cl.Message(
+                                content=f"Video file not found at path: {video_path}"
+                            ).send()
                 else:
                     error_text = await response.text()
                     await cl.Message(content=f"Error from API: {error_text}").send()
