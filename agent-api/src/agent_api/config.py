@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -30,4 +31,12 @@ class Settings(BaseSettings):
     DISABLE_NEST_ASYNCIO: bool = True
 
 
-settings = Settings()
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """
+    Get the application settings.
+
+    Returns:
+        Settings: The application settings.
+    """
+    return Settings()

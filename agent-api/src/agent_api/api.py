@@ -8,7 +8,7 @@ from fastmcp.client import Client
 from loguru import logger
 
 from agent_api.agent import GroqAgent
-from agent_api.config import settings
+from agent_api.config import get_settings
 from agent_api.models import (
     ChatRequest,
     ChatResponse,
@@ -17,6 +17,7 @@ from agent_api.models import (
     ResetMemoryResponse,
 )
 
+settings = get_settings()
 
 class TaskStatus(str, Enum):
     PENDING = "pending"
@@ -26,11 +27,6 @@ class TaskStatus(str, Enum):
     NOT_FOUND = "not_found"
 
 
-# FIXME: move this enum outside app definition / bound size with deque or clean it
-
-bg_task_states = {}
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.agent = GroqAgent(
@@ -38,6 +34,7 @@ async def lifespan(app: FastAPI):
         mcp_server=settings.MCP_SERVER,
         active_tools=["process_video", "get_video_clip_from_image"],
     )
+    app.state.bg_task_states = dict()
     yield
     app.state.agent.reset_memory()
 
@@ -59,17 +56,18 @@ async def root():
 
 
 @app.get("/task-status/{task_id}")
-async def get_task_status(task_id: str):
-    status = bg_task_states.get(task_id, TaskStatus.NOT_FOUND)
+async def get_task_status(task_id: str, fastapi_request: Request):
+    status = fastapi_request.app.state.bg_task_states.get(task_id, TaskStatus.NOT_FOUND)
     return {"task_id": task_id, "status": status}
 
 
 @app.post("/process-video")
-async def process_video(request: ProcessVideoRequest, bg_tasks: BackgroundTasks):
+async def process_video(request: ProcessVideoRequest, bg_tasks: BackgroundTasks, fastapi_request: Request):
     """
     Process a video and return the results
     """
     task_id = str(uuid4())
+    bg_task_states = fastapi_request.app.state.bg_task_states
 
     async def background_process_video(video_path: str, task_id: str):
         """
