@@ -4,7 +4,9 @@ import opik
 from loguru import logger
 from opik.configurator.configure import OpikConfigurator
 
-from agent_api.config import settings
+from agent_api.config import get_settings
+
+settings = get_settings()
 
 
 def configure() -> None:

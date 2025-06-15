@@ -1,39 +1,39 @@
 from pydantic import BaseModel, Field
 
 
-class ChatRequest(BaseModel):
+class ProcessVideoRequest(BaseModel):
+    video_path: str
+
+class ProcessVideoResponse(BaseModel):
+    message: str
+    task_id: str
+    
+
+class UserMessageRequest(BaseModel):
     message: str
     video_path: str | None = None
     image_base64: str | None = None
 
 
-class ChatResponse(BaseModel):
-    response: str
-    clip_path: str | None = None
-
-
-class ProcessVideoRequest(BaseModel):
-    video_path: str
-
-
-class ProcessVideoResponse(BaseModel):
+class AssistantMessageResponse(BaseModel):
     message: str
-    task_id: str
+    clip_path: str | None = None
 
 
 class ResetMemoryResponse(BaseModel):
     message: str
     
 
+# -- LLM Structured Outputs Models --
+
 class RoutingResponseModel(BaseModel):
     tool_use: bool = Field(description="Whether the user's question requires a tool call.")
 
     
 class GeneralResponseModel(BaseModel):
-    content: str = Field(description="Your response to the user's question.")
+    message: str = Field(description="Your response to the user's question.")
 
     
 class VideoClipResponseModel(BaseModel):
+    message: str = Field(description="A message prompting the user to view the video clip.")
     clip_path: str = Field(description="The path to the generated clip.")
-    content: str = Field(description="A message prompting the user to view the video clip.")
-

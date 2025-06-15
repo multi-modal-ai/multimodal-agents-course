@@ -11,15 +11,18 @@ from opik import opik_context
 
 from agent_api.agent.base_agent import BaseAgent
 from agent_api.agent.groq.groq_tool import transform_tool_definition
-from agent_api.agent.groq.models import (
+from agent_api.models import (
     GeneralResponseModel,
     RoutingResponseModel,
     VideoClipResponseModel,
+    AssistantMessageResponse
 )
 from agent_api.agent.memory import Memory, MemoryRecord
-from agent_api.config import settings
+from agent_api.config import get_settings
 
 logger.bind(name="GroqAgent")
+
+settings = get_settings()
 
 
 class GroqAgent(BaseAgent):
@@ -28,13 +31,13 @@ class GroqAgent(BaseAgent):
         name: str,
         mcp_server: str,
         memory: Optional[Memory] = None,
-        active_tools: list = None,
+        disable_tools: list = None,
     ):
         super().__init__(
             name,
             mcp_server,
             memory,
-            active_tools,
+            disable_tools,
         )
         self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.instructor_client = instructor.from_groq(
@@ -48,40 +51,26 @@ class GroqAgent(BaseAgent):
 
     @opik.track(name="build-chat-history")
     def _build_chat_history(
-        self, system_prompt: str, message: str, image_base64: str | None = None
+        self, system_prompt: str, user_message: str, image_base64: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        history = [
-            {"role": "system", "content": system_prompt},
-            *[
-                {"role": record.role, "content": record.content}
-                for record in self.memory.get_latest(n=settings.AGENT_MEMORY_SIZE)
-            ],
+        history = [{"role": "system", "content": system_prompt}]
+        history += [
+            {"role": record.role, "content": record.content}
+            for record in self.memory.get_latest(n=settings.AGENT_MEMORY_SIZE)
         ]
 
-        if image_base64:
-            history.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": message,
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}",
-                            },
-                        },
-                    ],
-                }
-            )
-        else:
-            history.append({"role": "user", "content": message})
+        user_content = (
+            [
+                {"type": "text", "text": user_message},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+            ]
+            if image_base64 else user_message
+        )
+        history.append({"role": "user", "content": user_content})
         return history
-
+    
     @opik.track(name="router", type="llm")
-    def _route_query(self, message: str, video_path: str) -> bool:
+    def _should_use_tool(self, message: str, video_path: str) -> bool:
         response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_ROUTING_MODEL,
             response_model=RoutingResponseModel,
@@ -107,17 +96,20 @@ class GroqAgent(BaseAgent):
             tools=self.tools,
             tool_choice="auto",
             max_completion_tokens=4096,
-        )
+        ).choices[0].message
+        
 
-        response_message = response.choices[0].message
-        tool_calls = response_message.tool_calls
+        tool_calls = response.tool_calls
 
         if not tool_calls:
-            return response_message.content
+            return GeneralResponseModel(message=response.content)
 
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
+            
+            if image_base64 and function_name == "get_video_clip_from_image":
+                function_args["user_image"] = image_base64
 
             try:
                 async with self.mcp_client as _:
@@ -137,48 +129,42 @@ class GroqAgent(BaseAgent):
                     "content": function_response,
                 }
             )
-
-        if function_name == "get_video_clip_from_user_query":
-            second_response = self.instructor_client.chat.completions.create(
-                model=settings.GROQ_TOOL_USE_MODEL,
-                messages=chat_history,
-                response_model=VideoClipResponseModel,
-            )
-        else:
-            second_response = self.instructor_client.chat.completions.create(
-                model=settings.GROQ_TOOL_USE_MODEL,
-                messages=chat_history,
-                response_model=GeneralResponseModel,
-            )
-        logger.info(f"Second response: {second_response}")
-        return second_response
-
-    @opik.track(name="general-response-with-image", type="llm")
-    def _run_with_image(self, message: str, image_base64: str) -> str:
-        """Execute chat completion with image usage."""
-        chat_history = self._build_chat_history(
-            self.general_system_prompt, message, image_base64
+            
+        response_model = (
+            GeneralResponseModel
+            if function_name == "ask_question_about_video"
+            else VideoClipResponseModel
         )
 
+        followup_response = self.instructor_client.chat.completions.create(
+            model=settings.GROQ_TOOL_USE_MODEL,
+            messages=chat_history,
+            response_model=response_model,
+        )
+        
+        return followup_response
+
+
+    @opik.track(name="general-response-with-image", type="llm")
+    def _respond_with_image(self, message: str, image_base64: str) -> str:
+        chat_history = self._build_chat_history(self.general_system_prompt, message, image_base64)
+        logger.info(f"Chat history: {chat_history}")
         response = self.client.chat.completions.create(
             model=settings.GROQ_IMAGE_MODEL,
             messages=chat_history,
         )
-        return response.choices[0].message.content
+        logger.info(f"Response: {response}")
+        return GeneralResponseModel(message=response.choices[0].message.content)
 
     @opik.track(name="generate-response", type="llm")
-    def _run_general(self, message: str) -> str:
-        """Execute general chat completion without tool usage."""
+    def _respond_general(self, message: str) -> str:
         chat_history = self._build_chat_history(self.general_system_prompt, message)
-
-        response = self.instructor_client.chat.completions.create(
+        return self.instructor_client.chat.completions.create(
             model=settings.GROQ_GENERAL_MODEL,
             messages=chat_history,
             response_model=GeneralResponseModel,
         )
-        return response
 
-    @opik.track(name="memory-insertion", type="general")
     def _add_to_memory(self, role: str, content: str) -> None:
         """Add a message to the agent's memory."""
         self.memory.insert(
@@ -189,44 +175,35 @@ class GroqAgent(BaseAgent):
                 timestamp=datetime.now(),
             )
         )
+    
+    @opik.track(name="memory-insertion", type="general")
+    def _add_memory_pair(self, user_message: str, assistant_message: str) -> None:
+        self._add_to_memory("user", user_message)
+        self._add_to_memory("assistant", assistant_message)
 
     @opik.track(name="chat", type="general")
     async def chat(
         self,
         message: str,
-        video_path: str | None = None,
-        image_base64: str | None = None,
-    ) -> str:
-        """Process a chat message and return the response."""
+        video_path: Optional[str] = None,
+        image_base64: Optional[str] = None,
+    ) -> AssistantMessageResponse:
+        """Main entry point for processing a user message."""
         opik_context.update_current_trace(thread_id=self.thread_id)
 
-        if image_base64:
-            tool_use = self._route_query(message, video_path)
-            logger.info(f"Tool use: {tool_use}")
-            response = (
-                await self._run_with_tool(message, video_path)
-                if tool_use
-                else self._run_with_image(message, image_base64)
-            )
-            self._add_to_memory("user", message)
-            self._add_to_memory("assistant", response.content)
-            return response
+        tool_required = video_path and self._should_use_tool(message, video_path)
+        logger.info(f"Tool required: {tool_required}")
 
-        if video_path:
-            tool_use = self._route_query(message, video_path)
-            logger.info(f"Tool use: {tool_use}")
-            response = (
-                await self._run_with_tool(message, video_path)
-                if tool_use
-                else self._run_general(message)
-            )
-            self._add_to_memory("user", message)
-            self._add_to_memory("assistant", response.content)
-            return response
+        if tool_required:
+            response = await self._run_with_tool(message, video_path, image_base64)
+        elif image_base64:
+            logger.info(f"Image base64: {image_base64[:10]}")
+            response = self._respond_with_image(message, image_base64)
+        else:
+            response = self._respond_general(message)
 
-        response = self._run_general(message)
+        self._add_memory_pair(message, response.message)
         
-        self._add_to_memory("user", message)
-        self._add_to_memory("assistant", response.content)
-        
-        return response
+        return AssistantMessageResponse(
+            **response.dict()
+        )

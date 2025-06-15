@@ -10,11 +10,11 @@ from loguru import logger
 from agent_api.agent import GroqAgent
 from agent_api.config import get_settings
 from agent_api.models import (
-    ChatRequest,
-    ChatResponse,
     ProcessVideoRequest,
     ProcessVideoResponse,
     ResetMemoryResponse,
+    UserMessageRequest,
+    AssistantMessageResponse,
 )
 
 settings = get_settings()
@@ -95,8 +95,8 @@ async def process_video(request: ProcessVideoRequest, bg_tasks: BackgroundTasks,
     return ProcessVideoResponse(message="Task enqueued for processing", task_id=task_id)
 
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, fastapi_request: Request):
+@app.post("/chat", response_model=AssistantMessageResponse)
+async def chat(request: UserMessageRequest, fastapi_request: Request):
     """
     Chat with the AI assistant
 
@@ -114,7 +114,7 @@ async def chat(request: ChatRequest, fastapi_request: Request):
         response_data = {"response": response.content}
         if hasattr(response, "clip_path"):
             response_data["clip_path"] = response.clip_path
-        return ChatResponse(**response_data)
+        return AssistantMessageResponse(**response_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
