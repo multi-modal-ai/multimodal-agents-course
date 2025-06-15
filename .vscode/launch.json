@@ -1,0 +1,55 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "[DEV] MCP Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/mcp_server/server.py",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "args": [
+                "--port", "9090", "--host", "0.0.0.0", "--transport", "streamable-http"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}/.venv/lib/python3.12/site-packages",
+                "HF_DEBUG": "1",
+                "XDG_CACHE_HOME": "/root/.cache/",
+                "HF_HUB_CACHE": "/root/.cache/huggingface"
+            }
+        },
+        {
+            "name": "[DEV] API",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/agent_api/api.py",
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.venv/lib/python3.12/site-packages:${workspaceFolder}/src",
+                "DISABLE_NEST_ASYNCIO": "true"
+            },
+            "args": [
+                "--port", "8080", "--host", "0.0.0.0"
+            ]
+        },
+        {
+            "name": "[DEV] UI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "chainlit",
+            "args": [
+                "run", "${workspaceFolder}/ui/chainlit_app.py",
+                "--port", "3000", "--host", "0.0.0.0"],
+            "justMyCode": false,
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/ui/.venv/lib/python3.12/site-packages:${workspaceFolder}/ui"
+            },
+        }
+    ]
+}

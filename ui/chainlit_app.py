@@ -16,7 +16,7 @@ class TaskStatus(str, Enum):
     NOT_FOUND = "not_found"
 
 
-API_BASE_URL = "http://agent-api:8080"  # Adjust to your FastAPI server address
+API_BASE_URL = "http://0.0.0.0:8080"  # Adjust to your FastAPI server address
 DEFAULT_RETRY_INTERVAL_SEC = 10
 LOADING_SPINNER_FRAMES = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"]
 LOADING_SPINNER_TASK = None

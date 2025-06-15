@@ -1,0 +1,26 @@
+{
+  "name": "agent-api-dev",
+  "build": {
+    "dockerfile": "../../agent-api/Dockerfile"
+  },
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ],  
+      "settings": {
+        "python.defaultInterpreterPath": "/app/.venv/bin/python",
+        "python.terminal.activateEnvironment": true
+      }
+    }
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder}/agent-api,target=/app,type=bind",
+    "source=${localWorkspaceFolder}/.vscode,target=/app/.vscode,type=bind",
+    "source=/Users/razvantalexandru/.cache,target=/root/.cache,type=bind"
+  ],
+  "forwardPorts": ["8080:8080", "3000:3000", "9090:9090"],
+  "remoteUser": "root"
+}

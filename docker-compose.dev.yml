@@ -1,0 +1,46 @@
+services:
+  mcp-server:
+    container_name: mcp-server
+    build:
+      context: ./mcp-server
+    command: sleep infinity
+    ports:
+      - "9090:9090"
+    env_file:
+      - ./mcp-server/.env
+    networks:
+      - agent-network
+    environment:
+    # https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables#xdgcachehome
+      - HF_HOME=/root/.cache/huggingface
+    volumes:
+      - ./.vscode:/app/.vscode
+      - ~/.pixeltable:/root/.pixeltable
+      - ./videos:/app/videos
+      - ~/.cache:/root/.cache
+      - ~/.cache/huggingface:/root/.cache/huggingface
+  agent-api:
+    container_name: agent-api
+    build:
+      context: ./agent-api
+    command: sleep infinity
+    ports:
+      - "8080:8080"
+    environment:
+      - DISABLE_NEST_ASYNCIO=True
+    env_file:
+      - ./agent-api/.env
+    networks:
+      - agent-network
+    depends_on:
+      - mcp-server
+    volumes:
+      - ./videos:/app/videos
+      - ./.vscode:/app/.vscode
+
+networks:
+  agent-network:
+    name: agent-network
+
+volumes:
+  videos:
