@@ -138,7 +138,7 @@ class GroqAgent(BaseAgent):
         )
 
         followup_response = self.instructor_client.chat.completions.create(
-            model=settings.GROQ_GENERAL_MODEL,
+            model=settings.GROQ_TOOL_USE_MODEL,
             messages=chat_history,
             response_model=response_model,
         )

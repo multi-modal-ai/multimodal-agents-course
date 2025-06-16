@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # --- GROQ Configuration ---
     GROQ_API_KEY: str
     GROQ_ROUTING_MODEL: str = "llama3-70b-8192"
-    GROQ_TOOL_USE_MODEL: str = "deepseek-r1-distill-llama-70b"
+    GROQ_TOOL_USE_MODEL: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
     GROQ_IMAGE_MODEL: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
     GROQ_GENERAL_MODEL: str = "llama3-70b-8192"
 

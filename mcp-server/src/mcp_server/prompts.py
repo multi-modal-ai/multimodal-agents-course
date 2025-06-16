@@ -30,6 +30,7 @@ You need to determine which tool to use based on the user query (if any).
 The tools available are:
 
 - get_video_clip_from_user_query: This tool is used to get a clip from the video based on the user query.
+- get_video_clip_from_image: This tool is used to get a clip from the video based on an image provided by the user.
 - ask_question_about_video: This tool is used to get some information about the video.
 
 The video path is: {video_path}
