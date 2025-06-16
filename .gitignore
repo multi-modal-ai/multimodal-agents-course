@@ -174,4 +174,4 @@ cython_debug/
 .pypirc
 
 .DS_Store
-.videos/*mp4
+videos/*mp4

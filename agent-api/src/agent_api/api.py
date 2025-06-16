@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     app.state.agent = GroqAgent(
         name="kubrick",
         mcp_server=settings.MCP_SERVER,
-        active_tools=["process_video", "get_video_clip_from_image"],
+        disable_tools=["process_video", "get_video_clip_from_image"],
     )
     app.state.bg_task_states = dict()
     yield
@@ -110,11 +110,8 @@ async def chat(request: UserMessageRequest, fastapi_request: Request):
     await agent.setup()
 
     try:
-        response = await agent.chat(request.message, request.video_path)
-        response_data = {"response": response.content}
-        if hasattr(response, "clip_path"):
-            response_data["clip_path"] = response.clip_path
-        return AssistantMessageResponse(**response_data)
+        response = await agent.chat(request.message, request.video_path, request.image_base64)
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -124,7 +124,7 @@ async def start():
                             break
                     await asyncio.sleep(
                         DEFAULT_RETRY_INTERVAL_SEC
-                    )  # wait before polling
+                    ) 
 
             cl.user_session.set("video_path", dest_path)
 
@@ -155,19 +155,22 @@ async def main(message: cl.Message):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
+                    
                     logger.info(f"Data: {data}")
-                    await cl.Message(content=data["response"]).send()
+                    response_message = data.get("message")
+                    clip_path = data.get("clip_path")
 
-                    if "clip_path" in data:
-                        video_path = data["clip_path"]
-                        if os.path.exists(video_path):
+                    await cl.Message(content=response_message).send()
+
+                    if clip_path:
+                        if os.path.exists(clip_path):
                             await cl.Message(
                                 content="Here is an video file",
-                                elements=[cl.Video(path=video_path, name="Video", display="inline")],
+                                elements=[cl.Video(path=clip_path, name="Video", display="inline")],
                             ).send()
                         else:
                             await cl.Message(
-                                content=f"Video file not found at path: {video_path}"
+                                content=f"Video file not found at path: {clip_path}"
                             ).send()
                 else:
                     error_text = await response.text()

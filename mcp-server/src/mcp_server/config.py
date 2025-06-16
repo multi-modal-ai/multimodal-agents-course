@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # --- GROQ Configuration ---
     GROQ_API_KEY: str
-    GROQ_VLM_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_VLM_MODEL: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
     # --- Video Ingestion Configuration ---
     SPLIT_FPS: float = 1.0
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     IMAGE_SIMILARITY_EMBD_MODEL: str = "openai/clip-vit-base-patch32"
 
     # --- Caption Similarity Search Configuration ---
-    CAPTION_MODEL_PROMPT: str = "Explain in detail everything you see in the image."
+    CAPTION_MODEL_PROMPT: str = "Describe, with high detail, every object, person, action and scenes displayed in the image."
     CAPTION_SIMILARITY_EMBD_MODEL: str = "openai/clip-vit-base-patch32"
     DELTA_SECONDS_FRAME_INTERVAL: float = 3.0
 
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     VIDEO_CLIP_SPEECH_SEARCH_TOP_K: int = 1
     VIDEO_CLIP_CAPTION_SEARCH_TOP_K: int = 1
     VIDEO_CLIP_IMAGE_SEARCH_TOP_K: int = 1
-    QUESTION_ANSWER_TOP_K: int = 10
+    QUESTION_ANSWER_TOP_K: int = 3
 
 
 @lru_cache(maxsize=1)
