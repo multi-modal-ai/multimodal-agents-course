@@ -31,9 +31,9 @@ class RoutingResponseModel(BaseModel):
 
     
 class GeneralResponseModel(BaseModel):
-    message: str = Field(description="Your response to the user's question.")
+    message: str = Field(description="Your response to the user's question, whose style needs to follow the given instructions")
 
-    
+
 class VideoClipResponseModel(BaseModel):
-    message: str = Field(description="A message prompting the user to view the video clip.")
+    message: str = Field(description="A fun and engaging message to the user, asking them to watch the video clip")
     clip_path: str = Field(description="The path to the generated clip.")

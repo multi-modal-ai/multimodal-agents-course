@@ -160,18 +160,18 @@ async def main(message: cl.Message):
                     response_message = data.get("message")
                     clip_path = data.get("clip_path")
 
-                    await cl.Message(content=response_message).send()
-
                     if clip_path:
                         if os.path.exists(clip_path):
                             await cl.Message(
-                                content="Here is an video file",
+                                content=response_message,
                                 elements=[cl.Video(path=clip_path, name="Video", display="inline")],
                             ).send()
                         else:
                             await cl.Message(
                                 content=f"Video file not found at path: {clip_path}"
                             ).send()
+                    else:
+                        await cl.Message(content=response_message).send()
                 else:
                     error_text = await response.text()
                     await cl.Message(content=f"Error from API: {error_text}").send()

@@ -51,12 +51,12 @@ class GroqAgent(BaseAgent):
 
     @opik.track(name="build-chat-history")
     def _build_chat_history(
-        self, system_prompt: str, user_message: str, image_base64: Optional[str] = None
+        self, system_prompt: str, user_message: str, image_base64: Optional[str] = None, n: int = settings.AGENT_MEMORY_SIZE
     ) -> List[Dict[str, Any]]:
         history = [{"role": "system", "content": system_prompt}]
         history += [
             {"role": record.role, "content": record.content}
-            for record in self.memory.get_latest(n=settings.AGENT_MEMORY_SIZE)
+            for record in self.memory.get_latest(n)
         ]
 
         user_content = (
@@ -70,14 +70,12 @@ class GroqAgent(BaseAgent):
         return history
     
     @opik.track(name="router", type="llm")
-    def _should_use_tool(self, message: str, video_path: str) -> bool:
+    def _should_use_tool(self, message: str) -> bool:
+        messages = self._build_chat_history(self.routing_system_prompt, message, n=2)
         response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_ROUTING_MODEL,
             response_model=RoutingResponseModel,
-            messages=[
-                {"role": "system", "content": self.routing_system_prompt},
-                {"role": "user", "content": message},
-            ],
+            messages=messages,
             max_completion_tokens=20,
         )
         return response.tool_use
@@ -107,6 +105,9 @@ class GroqAgent(BaseAgent):
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
+            
+            logger.info(f"Function name: {function_name}")
+            logger.info(f"Function args: {function_args}")
             
             if image_base64 and function_name == "get_video_clip_from_image":
                 function_args["user_image"] = image_base64
@@ -191,15 +192,17 @@ class GroqAgent(BaseAgent):
         """Main entry point for processing a user message."""
         opik_context.update_current_trace(thread_id=self.thread_id)
 
-        tool_required = video_path and self._should_use_tool(message, video_path)
+        tool_required = video_path and self._should_use_tool(message)
         logger.info(f"Tool required: {tool_required}")
 
         if tool_required:
+            logger.info("Running tool response")
             response = await self._run_with_tool(message, video_path, image_base64)
         elif image_base64:
-            logger.info(f"Image base64: {image_base64[:10]}")
+            logger.info("Running image response")
             response = self._respond_with_image(message, image_base64)
         else:
+            logger.info("Running general response")
             response = self._respond_general(message)
 
         self._add_memory_pair(message, response.message)
