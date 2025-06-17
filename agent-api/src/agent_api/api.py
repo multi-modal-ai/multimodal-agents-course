@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     app.state.agent = GroqAgent(
         name="kubrick",
         mcp_server=settings.MCP_SERVER,
-        disable_tools=["process_video", "get_video_clip_from_image"],
+        disable_tools=["process_video"],
     )
     app.state.bg_task_states = dict()
     yield

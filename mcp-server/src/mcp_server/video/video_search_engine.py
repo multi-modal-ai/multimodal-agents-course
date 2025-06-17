@@ -2,7 +2,8 @@ from typing import Any, Dict, List
 
 import mcp_server.video.ingestion.registry as registry
 from mcp_server.config import get_settings
-from mcp_server.video.ingestion.models import Base64Image, CachedTable
+from mcp_server.video.ingestion.models import CachedTable
+from mcp_server.video.ingestion.tools import decode_image
 
 settings = get_settings()
 
@@ -54,11 +55,11 @@ class VideoSearchEngine:
             for entry in results.limit(top_k).collect()
         ]
 
-    def search_by_image(self, image: Base64Image, top_k: int) -> List[Dict[str, Any]]:
+    def search_by_image(self, image_base64: str, top_k: int) -> List[Dict[str, Any]]:
         """Search video clips by image similarity.
 
         Args:
-            image (Base64Image): The query image to match against video frames.
+            image_base64 (str): The query image to match against video frames.
             top_k (int, optional): Number of top results to return. Defaults to settings.IMAGE_SIMILARITY_SEARCH_TOP_K.
 
         Returns:
@@ -67,7 +68,8 @@ class VideoSearchEngine:
                 - end_time (float): End time in seconds
                 - similarity (float): Similarity score
         """
-        sims = self.video_index.frames_view.image.similarity(image.to_pil())
+        image = decode_image(image_base64)
+        sims = self.video_index.frames_view.frame.similarity(image)
         results = self.video_index.frames_view.select(
             self.video_index.frames_view.pos_msec,
             self.video_index.frames_view.frame,

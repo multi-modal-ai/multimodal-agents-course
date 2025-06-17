@@ -4,7 +4,6 @@ from uuid import uuid4
 from loguru import logger
 
 from mcp_server.config import get_settings
-from mcp_server.video.ingestion.models import Base64Image
 from mcp_server.video.ingestion.tools import extract_video_clip
 from mcp_server.video.ingestion.video_processor import VideoProcessor
 from mcp_server.video.video_search_engine import VideoSearchEngine
@@ -63,15 +62,15 @@ def get_video_clip_from_user_query(video_path: str, user_query: str) -> Dict[str
         output_path=f"./videos/{str(uuid4())}.mp4",
     )
 
-    return {"filename": video_clip.filename}
+    return {"clip_path": video_clip.filename}
 
 
-def get_video_clip_from_image(video_path: str, user_image: Base64Image) -> Dict[str, str]:
+def get_video_clip_from_image(video_path: str, user_image: str) -> Dict[str, str]:
     """Get a video clip based on similarity to a provided image.
 
     Args:
         video_path (str): The path to the video file.
-        user_image (Base64Image): The query image encoded in base64 format.
+        user_image (str): The query image encoded in base64 format.
 
     Returns:
         Dict[str, str]: Dictionary containing:
@@ -87,7 +86,7 @@ def get_video_clip_from_image(video_path: str, user_image: Base64Image) -> Dict[
         output_path=f"./videos/{str(uuid4())}.mp4",
     )
 
-    return {"filename": video_clip.filename}
+    return {"clip_path": video_clip.filename}
 
 
 def ask_question_about_video(video_path: str, user_query: str) -> Dict[str, str]:

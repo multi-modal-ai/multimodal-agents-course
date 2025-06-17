@@ -11,14 +11,14 @@ from opik import opik_context
 
 from agent_api.agent.base_agent import BaseAgent
 from agent_api.agent.groq.groq_tool import transform_tool_definition
+from agent_api.agent.memory import Memory, MemoryRecord
+from agent_api.config import get_settings
 from agent_api.models import (
+    AssistantMessageResponse,
     GeneralResponseModel,
     RoutingResponseModel,
     VideoClipResponseModel,
-    AssistantMessageResponse
 )
-from agent_api.agent.memory import Memory, MemoryRecord
-from agent_api.config import get_settings
 
 logger.bind(name="GroqAgent")
 
@@ -51,7 +51,11 @@ class GroqAgent(BaseAgent):
 
     @opik.track(name="build-chat-history")
     def _build_chat_history(
-        self, system_prompt: str, user_message: str, image_base64: Optional[str] = None, n: int = settings.AGENT_MEMORY_SIZE
+        self,
+        system_prompt: str,
+        user_message: str,
+        image_base64: Optional[str] = None,
+        n: int = settings.AGENT_MEMORY_SIZE,
     ) -> List[Dict[str, Any]]:
         history = [{"role": "system", "content": system_prompt}]
         history += [
@@ -62,16 +66,23 @@ class GroqAgent(BaseAgent):
         user_content = (
             [
                 {"type": "text", "text": user_message},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"},
+                },
             ]
-            if image_base64 else user_message
+            if image_base64
+            else user_message
         )
         history.append({"role": "user", "content": user_content})
         return history
-    
+
     @opik.track(name="router", type="llm")
     def _should_use_tool(self, message: str) -> bool:
-        messages = self._build_chat_history(self.routing_system_prompt, message, n=2)
+        messages = [
+            {"role": "system", "content": self.routing_system_prompt},
+            {"role": "user", "content": message},
+        ]
         response = self.instructor_client.chat.completions.create(
             model=settings.GROQ_ROUTING_MODEL,
             response_model=RoutingResponseModel,
@@ -80,60 +91,68 @@ class GroqAgent(BaseAgent):
         )
         return response.tool_use
 
+    async def _execute_tool_call(self, tool_call: Any, video_path: str, image_base64: str | None = None) -> str:
+        """Execute a single tool call and return its response."""
+        function_name = tool_call.function.name
+        function_args = json.loads(tool_call.function.arguments)
+        
+        function_args["video_path"] = video_path
+        
+        if function_name == "get_video_clip_from_image":
+            function_args["user_image"] = image_base64
+
+        logger.info(f"Executing tool: {function_name}")
+
+        try:
+            return await self.call_tool(function_name, function_args)
+        except Exception as e:
+            logger.error(f"Error executing tool {function_name}: {str(e)}")
+            return f"Error executing tool {function_name}: {str(e)}"
+
     @opik.track(name="tool-use", type="tool")
-    async def _run_with_tool(self, message: str, video_path: str, image_base64: str | None = None) -> str:
+    async def _run_with_tool(
+        self, message: str, video_path: str, image_base64: str | None = None
+    ) -> str:
         """Execute chat completion with tool usage."""
         tool_use_system_prompt = self.tool_use_system_prompt.format(
-            video_path=video_path
+            is_image_provided=bool(image_base64),
         )
         chat_history = self._build_chat_history(tool_use_system_prompt, message)
 
-        response = self.client.chat.completions.create(
-            model=settings.GROQ_TOOL_USE_MODEL,
-            messages=chat_history,
-            tools=self.tools,
-            tool_choice="auto",
-            max_completion_tokens=4096,
-        ).choices[0].message
-        
-
+        response = (
+            self.client.chat.completions.create(
+                model=settings.GROQ_TOOL_USE_MODEL,
+                messages=chat_history,
+                tools=self.tools,
+                tool_choice="auto",
+                max_completion_tokens=4096,
+            )
+            .choices[0]
+            .message
+        )
         tool_calls = response.tool_calls
-
+        logger.info(f"Tool calls: {tool_calls}")
+        
         if not tool_calls:
+            logger.info("No tool calls available, returning general response ...")
             return GeneralResponseModel(message=response.content)
 
         for tool_call in tool_calls:
-            function_name = tool_call.function.name
-            function_args = json.loads(tool_call.function.arguments)
-            
-            logger.info(f"Function name: {function_name}")
-            logger.info(f"Function args: {function_args}")
-            
-            if image_base64 and function_name == "get_video_clip_from_image":
-                function_args["user_image"] = image_base64
-
-            try:
-                async with self.mcp_client as _:
-                    mcp_response = await self.mcp_client.call_tool(
-                        function_name, function_args
-                    )
-                    function_response = mcp_response[0].text
-            except Exception as e:
-                logger.error(f"Error calling tool {function_name}: {str(e)}")
-                function_response = f"Error executing tool {function_name}: {str(e)}"
+            function_response = await self._execute_tool_call(tool_call, video_path, image_base64)
+            logger.info(f"Function response: {function_response}")
 
             chat_history.append(
                 {
                     "tool_call_id": tool_call.id,
                     "role": "tool",
-                    "name": function_name,
+                    "name": tool_call.function.name,
                     "content": function_response,
                 }
             )
-            
+
         response_model = (
             GeneralResponseModel
-            if function_name == "ask_question_about_video"
+            if tool_call.function.name == "ask_question_about_video"
             else VideoClipResponseModel
         )
 
@@ -142,20 +161,8 @@ class GroqAgent(BaseAgent):
             messages=chat_history,
             response_model=response_model,
         )
-        
+
         return followup_response
-
-
-    @opik.track(name="general-response-with-image", type="llm")
-    def _respond_with_image(self, message: str, image_base64: str) -> str:
-        chat_history = self._build_chat_history(self.general_system_prompt, message, image_base64)
-        logger.info(f"Chat history: {chat_history}")
-        response = self.client.chat.completions.create(
-            model=settings.GROQ_IMAGE_MODEL,
-            messages=chat_history,
-        )
-        logger.info(f"Response: {response}")
-        return GeneralResponseModel(message=response.choices[0].message.content)
 
     @opik.track(name="generate-response", type="llm")
     def _respond_general(self, message: str) -> str:
@@ -176,7 +183,7 @@ class GroqAgent(BaseAgent):
                 timestamp=datetime.now(),
             )
         )
-    
+
     @opik.track(name="memory-insertion", type="general")
     def _add_memory_pair(self, user_message: str, assistant_message: str) -> None:
         self._add_to_memory("user", user_message)
@@ -198,15 +205,10 @@ class GroqAgent(BaseAgent):
         if tool_required:
             logger.info("Running tool response")
             response = await self._run_with_tool(message, video_path, image_base64)
-        elif image_base64:
-            logger.info("Running image response")
-            response = self._respond_with_image(message, image_base64)
         else:
             logger.info("Running general response")
             response = self._respond_general(message)
 
         self._add_memory_pair(message, response.message)
-        
-        return AssistantMessageResponse(
-            **response.dict()
-        )
+
+        return AssistantMessageResponse(**response.dict())

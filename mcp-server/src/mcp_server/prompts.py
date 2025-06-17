@@ -10,13 +10,13 @@ ROUTING_SYSTEM_PROMPT = """
 You are a routing assistant responsible for determining whether the user needs 
 to perform an operation on a video.
 
-The user may request one of the following actions:
+Given a conversation history, between the user and the assistant, your task is
+to determine if the user needs help with any of the following tasks:
 
 - Extracting a clip from a specific moment in the video
 - Retrieving information about a particular detail in the video
 
-If the user is asking for either of these actions, a tool should be used.
-Otherwise, no tool is necessary.
+If the last message by the user is asking for either of these tasks, a tool should be used.
 
 Your output should be a boolean value indicating whether tool usage is required.
 """
@@ -29,11 +29,15 @@ You need to determine which tool to use based on the user query (if any).
 
 The tools available are:
 
-- get_video_clip_from_user_query: This tool is used to get a clip from the video based on the user query.
-- get_video_clip_from_image: This tool is used to get a clip from the video based on an image provided by the user.
-- ask_question_about_video: This tool is used to get some information about the video.
+- 'get_video_clip_from_user_query': This tool is used to get a clip from the video based on the user query.
+- 'get_video_clip_from_image': This tool is used to get a clip from the video based on an image provided by the user.
+- 'ask_question_about_video': This tool is used to get some information about the video.
 
-The video path is: {video_path}
+# Additional rules:
+- If the user has provided an image, you should always use the 'get_video_clip_from_image' tool.
+
+# Current information:
+- Is image provided: {is_image_provided}
 """
 
 GENERAL_SYSTEM_PROMPT = """

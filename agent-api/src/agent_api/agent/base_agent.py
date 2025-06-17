@@ -100,6 +100,11 @@ class BaseAgent(ABC):
     async def _get_tools(self) -> list:
         raise NotImplementedError("Tools are not implemented in the base class.")
     
+    async def call_tool(self, function_name: str, function_args: dict) -> str:
+        async with self.mcp_client as _:
+            mcp_response = await self.mcp_client.call_tool(function_name, function_args)
+            return mcp_response[0].text
+    
     @abstractmethod
     async def chat(self, message: str) -> str:
         raise NotImplementedError("Chat is not implemented in the base class.")
