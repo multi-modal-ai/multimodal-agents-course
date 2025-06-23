@@ -34,16 +34,30 @@ services:
     volumes:
       - ./videos:/app/videos
       - ./.vscode:/app/.vscode
-  ui:
-    container_name: ui
+  # ui:
+  #   container_name: ui
+  #   build:
+  #     context: ./ui
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8501:8501"
+  #   depends_on:
+  #     - agent-api
+  #     - mcp-server
+  #   networks:
+  #     - agent-network
+  #   volumes:
+  #     - ./videos:/app/videos
+  kubrick-ui:
+    container_name: kubrick-ui
     build:
-      context: ./ui
+      context: ./kubrick-ui
       dockerfile: Dockerfile
     ports:
-      - "8501:8501"
-    # depends_on:
-      # - agent-api
-      # - mcp-server
+      - "3000:3000"
+    depends_on:
+      - agent-api
+      - mcp-server
     networks:
       - agent-network
     volumes:
