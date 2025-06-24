@@ -19,10 +19,10 @@ lint-check:
 
 # --- MCP Server ---
 
-start-agent-api: stop-agent-api
-	docker build -t agent-api . && \
-	docker run -d -p 8080:8080 --name agent-api --env-file .env agent-api
+start-kubrick-api: stop-kubrick-api
+	docker build -t kubrick-api . && \
+	docker run -d -p 8080:8080 --name kubrick-api --env-file .env kubrick-api
 
-stop-agent-api:
-	docker stop agent-api || true && \
-	docker rm agent-api || true
+stop-kubrick-api:
+	docker stop kubrick-api || true && \
+	docker rm kubrick-api || true
