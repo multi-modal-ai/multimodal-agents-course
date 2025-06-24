@@ -36,5 +36,6 @@ This course, is a collaboration between The Neural Maze and Neural Bits (from no
 
 * Integrate your agentic system with Opik for full observability and prompt versioning
 
-> No shortcuts. No fluff. Let's learn by doing. 
+> No shortcuts. No fluff. Let's learn by doing.
 
+<video src="https://github.com/user-attachments/assets/ef77c2a9-1a77-4f14-b2dd-e759c3f6db72"/></video>
