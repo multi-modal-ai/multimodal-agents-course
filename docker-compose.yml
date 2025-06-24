@@ -1,53 +1,38 @@
 services:
-  mcp-server:
-    container_name: mcp-server
+  kubrick-mcp:
+    container_name: kubrick-mcp
     build:
-      context: ./mcp-server
+      context: ./kubrick-mcp
     ports:
       - "9090:9090"
     env_file:
-      - ./mcp-server/.env
+      - ./kubrick-mcp/.env
     networks:
       - agent-network
     environment:
-    # https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables#xdgcachehome
       - HF_HOME=/root/.cache/huggingface
     volumes:
       - ./.vscode:/app/.vscode
-      - ./videos:/app/videos
+      - shared_media:/app/shared_media
       - ~/.cache:/root/.cache
       - ~/.cache/huggingface:/root/.cache/huggingface
-  agent-api:
-    container_name: agent-api
+  kubrick-api:
+    container_name: kubrick-api
     build:
-      context: ./agent-api
+      context: ./kubrick-api
     ports:
       - "8080:8080"
     environment:
       - DISABLE_NEST_ASYNCIO=True
     env_file:
-      - ./agent-api/.env
+      - ./kubrick-api/.env
     networks:
       - agent-network
     depends_on:
-      - mcp-server
+      - kubrick-mcp
     volumes:
-      - ./videos:/app/videos
+      - shared_media:/app/shared_media
       - ./.vscode:/app/.vscode
-  # ui:
-  #   container_name: ui
-  #   build:
-  #     context: ./ui
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "8501:8501"
-  #   depends_on:
-  #     - agent-api
-  #     - mcp-server
-  #   networks:
-  #     - agent-network
-  #   volumes:
-  #     - ./videos:/app/videos
   kubrick-ui:
     container_name: kubrick-ui
     build:
@@ -56,16 +41,16 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - agent-api
-      - mcp-server
+      - kubrick-api
+      - kubrick-mcp
     networks:
       - agent-network
     volumes:
-      - ./videos:/app/videos
+      - shared_media:/app/shared_media
 
 networks:
   agent-network:
     name: agent-network
 
 volumes:
-  videos:
+  shared_media:

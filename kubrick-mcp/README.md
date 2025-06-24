@@ -111,3 +111,7 @@ make stop-kubrick-mcp
 ```
 
 This command will stop the container and remove any volumes associated with it.
+
+---
+
+Now that this project is set up, time to go back to the [parent README.md](../README.md)! 
