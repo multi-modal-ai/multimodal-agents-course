@@ -177,4 +177,3 @@ cython_debug/
 
 # Ignore all MP4 files except for the specific pass_the_butter_rick_and_morty.mp4
 *.mp4
-!notebooks/data/pass_the_butter_rick_and_morty.mp4
