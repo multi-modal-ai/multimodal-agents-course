@@ -15,4 +15,4 @@ WORKDIR /app
 RUN uv sync --frozen --no-cache
 
 # Run the FastMCP CLI
-CMD ["/app/.venv/bin/fastmcp", "run", "src/mcp_server/server.py", "--port", "9090", "--host", "0.0.0.0", "--transport", "streamable-http"]
+CMD ["/app/.venv/bin/fastmcp", "run", "src/kubrick_mcp/server.py", "--port", "9090", "--host", "0.0.0.0", "--transport", "streamable-http"]

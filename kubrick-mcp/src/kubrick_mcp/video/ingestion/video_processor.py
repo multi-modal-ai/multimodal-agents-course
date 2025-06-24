@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Optional
 
 import pixeltable as pxt
 from loguru import logger
-from pixeltable.functions import image as pxt_image
+from pixeltable.functions.openai import vision
+from pixeltable.functions.openai import embeddings
 from pixeltable.functions import openai
-from pixeltable.functions import string as pxt_string
-from pixeltable.functions.huggingface import clip, sentence_transformer
+from pixeltable.functions.huggingface import clip
 from pixeltable.functions.video import extract_audio
 from pixeltable.iterators import AudioSplitter
 from pixeltable.iterators.video import FrameIterator
@@ -134,7 +134,6 @@ class VideoProcessor:
             transcription=openai.transcriptions(
                 audio=self.audio_chunks.audio_chunk,
                 model=settings.AUDIO_TRANSCRIPT_MODEL,
-                language="en",
             ),
             if_exists="ignore",
         )
@@ -148,9 +147,7 @@ class VideoProcessor:
     def _add_audio_embedding_index(self):
         self.audio_chunks.add_embedding_index(
             column=self.audio_chunks.chunk_text,
-            string_embed=sentence_transformer.using(
-                model_id=settings.TRANSCRIPT_SIMILARITY_EMBD_MODEL
-            ),
+            string_embed=embeddings.using(model=settings.TRANSCRIPT_SIMILARITY_EMBD_MODEL),
             if_exists="ignore",
             idx_name="chunks_index",
         )
@@ -158,7 +155,6 @@ class VideoProcessor:
     def _setup_frame_processing(self):
         self._create_frames_view()
         self._add_frame_embedding_index()
-        self._add_frame_encoding()
         self._add_frame_captioning()
         self._add_caption_embedding_index()
 
@@ -178,48 +174,21 @@ class VideoProcessor:
             image_embed=clip.using(model_id=settings.IMAGE_SIMILARITY_EMBD_MODEL),
         )
 
-    def _add_frame_encoding(self):
-        self.frames_view.add_computed_column(
-            frame_b64=pxt_image.b64_encode(self.frames_view.frame),
-            if_exists="ignore",
-        )
-
-        self.frames_view.add_computed_column(
-            image_url=pxt_string.join(
-                "", ["data:image/jpeg;base64,", self.frames_view.frame_b64]
-            ),
-            if_exists="ignore",
-        )
 
     def _add_frame_captioning(self):
         self.frames_view.add_computed_column(
-            chat_completion=openai.chat_completions(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": settings.CAPTION_MODEL_PROMPT,
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": self.frames_view.image_url,
-                                },
-                            },
-                        ],
-                    }
-                ],
+            im_caption=vision(
+                prompt=settings.CAPTION_MODEL_PROMPT,
+                image=self.frames_view.frame,
                 model=settings.IMAGE_CAPTION_MODEL,
-            ),
-            if_exists="ignore",
+            )
         )
+
 
     def _add_caption_embedding_index(self):
         self.frames_view.add_embedding_index(
             column=self.frames_view.im_caption,
-            string_embed=clip.using(model_id=settings.CAPTION_SIMILARITY_EMBD_MODEL),
+            string_embed=embeddings.using(model=settings.CAPTION_SIMILARITY_EMBD_MODEL),
         )
 
     def add_video(self, video_path: str) -> bool:

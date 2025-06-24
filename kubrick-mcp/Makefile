@@ -19,24 +19,24 @@ lint-check:
 
 # --- MCP Server ---
 
-start-mcp-server: stop-mcp-server
-	docker build -t mcp-server . && \
-	docker run -it -p 9090:9090 --name mcp-server --env-file .env -v ./notebooks/data:/app/videos -v ./.pixeltable:/root/.pixeltable -v ./.records:/app/.records mcp-server
+start-kubrick-mcp: stop-kubrick-mcp
+	docker build -t kubrick-mcp . && \
+	docker run -it -p 9090:9090 --name kubrick-mcp --env-file .env -v ./notebooks/data:/app/videos -v ./.pixeltable:/root/.pixeltable -v ./.records:/app/.records -v ~/.cache/huggingface:/root/.cache/huggingface kubrick-mcp
 
-inspect-mcp-server:
+inspect-kubrick-mcp:
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && \
 	. ~/.nvm/nvm.sh && \
 	nvm install node; \
 	npx @modelcontextprotocol/inspector
 
-stop-mcp-server:
-	docker stop mcp-server || true && \
-	docker rm mcp-server || true && \
+stop-kubrick-mcp:
+	docker stop kubrick-mcp || true && \
+	docker rm kubrick-mcp || true && \
 	rm -rf .pixeltable && \
 	rm -rf .records
 
 # --- FFmpeg ---
 
-convert-video:
+fix-video:
 	ffmpeg -i $(input) -c:v libx264 -c:a copy $(output)
 
