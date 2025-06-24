@@ -19,3 +19,7 @@ and running the application:
 ```bash
 npm run dev
 ```
+
+---
+
+Time to go back to the [parent README.md](../README.md)! 
