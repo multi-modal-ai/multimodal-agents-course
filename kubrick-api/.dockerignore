@@ -1,0 +1,8 @@
+data/
+.venv/
+.env
+.DS_Store
+.vscode/
+.ruff_cache/
+img/
+notebooks/

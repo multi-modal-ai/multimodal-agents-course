@@ -1,0 +1,28 @@
+[project]
+name = "kubrick-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.13",
+    "fastmcp>=2.9.0",
+    "groq>=0.28.0",
+    "instructor>=1.9.0",
+    "ipykernel>=6.29.5",
+    "loguru>=0.7.3",
+    "opik>=1.7.36",
+    "pixeltable>=0.4.1",
+    "pydantic-settings>=2.10.0",
+    "ruff>=0.12.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kubrick_api"]
+
+[tool.ruff]
+target-version = "py312"
