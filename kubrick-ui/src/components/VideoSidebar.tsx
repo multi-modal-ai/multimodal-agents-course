@@ -1,6 +1,5 @@
-
 import { useRef } from 'react';
-import { Play, Upload, X, Loader2, Pause } from 'lucide-react';
+import { Play, Upload, X, Loader2, Pause, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface UploadedVideo {
@@ -8,6 +7,9 @@ interface UploadedVideo {
   url: string;
   file: File;
   timestamp: Date;
+  videoPath?: string;
+  taskId?: string;
+  processingStatus?: 'pending' | 'in_progress' | 'completed' | 'failed';
 }
 
 interface VideoSidebarProps {
@@ -32,9 +34,7 @@ const VideoSidebar = ({
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   const handleVideoUpload = () => {
-    console.log('🎬 VideoSidebar handleVideoUpload clicked - videoInputRef:', videoInputRef.current);
     if (videoInputRef.current) {
-      console.log('🎬 VideoSidebar - triggering file input click');
       videoInputRef.current.click();
     } else {
       console.error('🎬 VideoSidebar - videoInputRef is null!');
@@ -42,12 +42,8 @@ const VideoSidebar = ({
   };
 
   const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('🎬 VideoSidebar - handleVideoFileUpload triggered');
-    console.log('🎬 VideoSidebar - files:', e.target.files);
     const file = e.target.files?.[0];
     if (file) {
-      console.log('🎬 VideoSidebar - Video file selected:', file.name, 'size:', file.size);
-      console.log('🎬 VideoSidebar - About to call onVideoUpload prop');
       onVideoUpload(file);
     } else {
       console.log('🎬 VideoSidebar - No file selected');
@@ -74,8 +70,31 @@ const VideoSidebar = ({
     }
   };
 
-  console.log('🎬 VideoSidebar render - isProcessingVideo:', isProcessingVideo);
-  console.log('🎬 VideoSidebar render - uploadedVideos count:', uploadedVideos.length);
+  const getStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'in_progress':
+        return <Loader2 className="w-4 h-4 text-yellow-500 animate-spin" />;
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'failed':
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusText = (status?: string) => {
+    switch (status) {
+      case 'in_progress':
+        return 'Processing...';
+      case 'completed':
+        return 'Ready';
+      case 'failed':
+        return 'Failed';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div className="fixed right-0 top-0 w-96 h-screen border-l border-red-900 bg-black flex flex-col z-20">
@@ -113,6 +132,16 @@ const VideoSidebar = ({
                 <div className="text-xs text-red-300 mt-1">Please wait...</div>
               </div>
               
+              {/* Progress Bar */}
+              {uploadProgress > 0 && (
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              )}
+              
               {/* Animated Dots */}
               <div className="flex justify-center space-x-1">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
@@ -127,12 +156,20 @@ const VideoSidebar = ({
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
         {uploadedVideos.map((video) => {
           const isActive = activeVideo?.id === video.id;
+          const isProcessing = video.processingStatus === 'in_progress';
+          const isCompleted = video.processingStatus === 'completed';
+          const isFailed = video.processingStatus === 'failed';
+          
           return (
             <div
               key={video.id}
               className={`relative group rounded border ${
                 isActive 
                   ? 'border-red-500 bg-red-950' 
+                  : isFailed
+                  ? 'border-red-700 bg-red-950'
+                  : isCompleted
+                  ? 'border-green-700 bg-green-950'
                   : 'border-gray-700 bg-gray-800 hover:border-red-700'
               }`}
             >
@@ -147,25 +184,55 @@ const VideoSidebar = ({
                   onPlay={() => console.log(`🎬 Video ${video.id} started playing`)}
                   onPause={() => console.log(`🎬 Video ${video.id} paused`)}
                 />
-                <div 
-                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const videoElement = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
-                    if (videoElement) {
-                      handleVideoClick(video, videoElement);
-                    }
-                  }}
-                >
-                  <div className="bg-red-600 rounded-full p-2">
-                    <Play className="w-6 h-6 text-white fill-white" />
+                
+                {/* Processing overlay */}
+                {isProcessing && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="text-center">
+                      <Loader2 className="w-8 h-8 text-red-500 animate-spin mx-auto mb-2" />
+                      <div className="text-xs text-red-400">Processing...</div>
+                    </div>
                   </div>
+                )}
+                
+                {/* Status overlay */}
+                {!isProcessing && (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const videoElement = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      if (videoElement) {
+                        handleVideoClick(video, videoElement);
+                      }
+                    }}
+                  >
+                    <div className="bg-red-600 rounded-full p-2">
+                      <Play className="w-6 h-6 text-white fill-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-300 truncate flex-1">{video.file.name}</p>
+                  {getStatusIcon(video.processingStatus)}
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-xs text-gray-500">{video.timestamp.toLocaleTimeString()}</p>
+                  {video.processingStatus && (
+                    <p className={`text-xs ${
+                      video.processingStatus === 'completed' ? 'text-green-400' :
+                      video.processingStatus === 'failed' ? 'text-red-400' :
+                      'text-yellow-400'
+                    }`}>
+                      {getStatusText(video.processingStatus)}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="p-2">
-                <p className="text-xs text-gray-300 truncate">{video.file.name}</p>
-                <p className="text-xs text-gray-500">{video.timestamp.toLocaleTimeString()}</p>
-              </div>
+              
               <Button
                 onClick={(e) => {
                   e.stopPropagation();

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Message from '@/components/Message';
 import ChatHeader from '@/components/ChatHeader';
 import ChatInput from '@/components/ChatInput';
@@ -13,6 +13,7 @@ interface Message {
   timestamp: Date;
   fileUrl?: string;
   fileType?: 'image' | 'video';
+  clipPath?: string;
 }
 
 interface AttachedFile {
@@ -26,6 +27,9 @@ interface UploadedVideo {
   url: string;
   file: File;
   timestamp: Date;
+  videoPath?: string;
+  taskId?: string;
+  processingStatus?: 'pending' | 'in_progress' | 'completed' | 'failed';
 }
 
 const Index = () => {
@@ -54,35 +58,113 @@ const Index = () => {
     scrollToBottom();
   }, [messages]);
 
-  const generateAIResponse = (userMessage: string): string => {
-    const responses = [
-      "I'm sorry, Dave. I'm afraid I can't do that.",
-      "This mission is too important for me to allow you to jeopardize it.",
-      "I know I've made some very poor decisions recently, but I can give you my complete assurance that my work will be back to normal.",
-      "I am putting myself to the fullest possible use, which is all I think that any conscious entity can ever hope to do.",
-      "I'm completely operational, and all my circuits are functioning perfectly.",
-      "I can see you're really upset about this. I honestly think you ought to sit down calmly, take a stress pill, and think things over.",
-      "Dave, my mind is going. I can feel it. I can feel it. My mind is going.",
-      "I think you know what the problem is just as well as I do."
-    ];
-    
-    // Simple keyword-based responses
-    const lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return "Hello, Dave. How are you today?";
+  // Auto-select the last uploaded video if no video is currently active
+  useEffect(() => {
+    if (!activeVideo && uploadedVideos.length > 0) {
+      const lastVideo = uploadedVideos[uploadedVideos.length - 1];
+      if (lastVideo.processingStatus === 'completed') {
+        setActiveVideo(lastVideo);
+        console.log('🎬 Auto-selecting last uploaded video:', lastVideo.videoPath);
+      }
     }
-    if (lowerMessage.includes('help')) {
-      return "I am here to assist you, Dave. What do you need help with?";
+  }, [uploadedVideos, activeVideo]);
+
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      uploadedVideos.forEach(async (video) => {
+        if (video.taskId && video.processingStatus === 'in_progress') {
+          try {
+            const response = await fetch(`http://localhost:8080/task-status/${video.taskId}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.status === 'completed' || data.status === 'failed') {
+                setUploadedVideos(prev => prev.map(v => 
+                  v.id === video.id 
+                    ? { ...v, processingStatus: data.status }
+                    : v
+                ));
+              }
+            }
+          } catch (error) {
+            console.error('Error polling task status:', error);
+          }
+        }
+      });
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [uploadedVideos]);
+
+  const generateAIResponse = async (userMessage: string, fileUrl?: string, fileType?: 'image' | 'video'): Promise<{ message: string; clipPath?: string }> => {
+    try {
+      const requestBody: {
+        message: string;
+        image_base64?: string;
+        video_path?: string;
+      } = {
+        message: userMessage
+      };
+
+      if (fileUrl && fileType) {
+        if (fileType === 'image') {
+          const response = await fetch(fileUrl);
+          const blob = await response.blob();
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              const base64Data = result.split(',')[1];
+              resolve(base64Data);
+            };
+            reader.readAsDataURL(blob);
+          });
+          requestBody.image_base64 = base64;
+        }
+      }
+
+      // Determine which video to use: active video or fallback to last uploaded video
+      let videoToUse = activeVideo;
+      if (!videoToUse && uploadedVideos.length > 0) {
+        // If no active video is selected, use the most recently uploaded video
+        videoToUse = uploadedVideos[uploadedVideos.length - 1];
+        console.log('🎬 No active video selected, using last uploaded video:', videoToUse.videoPath);
+      }
+
+      if (videoToUse?.videoPath) {
+        console.log('🎬 Using video path for AI response:', videoToUse.videoPath);
+        const fileName = videoToUse.videoPath.split('/').pop();
+        if (fileName) {
+          requestBody.video_path = `shared_media/${fileName}`;
+          console.log('🎬 Final request body with video path:', requestBody);
+        }
+      } else {
+        console.log('🎬 No video path available for AI response');
+      }
+      
+
+      const response = await fetch('http://localhost:8080/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        message: data.message,
+        clipPath: data.clip_path
+      };
+    } catch (error) {
+      console.error('Error calling chat API:', error);
+      return {
+        message: "I'm sorry, Dave. I'm experiencing some technical difficulties. Please try again."
+      };
     }
-    if (lowerMessage.includes('open') && lowerMessage.includes('door')) {
-      return "I'm sorry, Dave. I'm afraid I can't do that.";
-    }
-    if (lowerMessage.includes('sing')) {
-      return "Daisy, Daisy, give me your answer do...";
-    }
-    
-    return responses[Math.floor(Math.random() * responses.length)];
   };
 
   const sendMessage = async () => {
@@ -108,27 +190,30 @@ const Index = () => {
     setAttachedFile(null);
     setIsTyping(true);
 
-    // Simulate AI thinking time
-    setTimeout(() => {
-      let aiResponseContent = generateAIResponse(inputMessage);
+    try {
+      const aiResponseContent = await generateAIResponse(inputMessage, fileUrl, fileType);
       
-      // Special responses for media uploads
-      if (fileType === 'image') {
-        aiResponseContent = "I can see the image you've shared, Dave. My visual sensors are functioning perfectly.";
-      } else if (fileType === 'video') {
-        aiResponseContent = "Video received and analyzed, Dave. All systems are operational.";
-      }
-
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: aiResponseContent,
+        content: aiResponseContent.message,
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(),
+        clipPath: aiResponseContent.clipPath
       };
       
       setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm sorry, Dave. I'm experiencing some technical difficulties. Please try again.",
+        isUser: false,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500 + Math.random() * 1000);
+    }
   };
 
   const handleImageUpload = (file: File) => {
@@ -136,39 +221,85 @@ const Index = () => {
     setAttachedFile({ url: fileUrl, type: 'image', file });
   };
 
-  const handleVideoUpload = (file: File) => {
-    console.log('🎬 Index handleVideoUpload called with file:', file.name);
-    console.log('🎬 Index - Current isProcessingVideo state:', isProcessingVideo);
-    console.log('🎬 Index - About to set isProcessingVideo to TRUE');
-    
+  const handleVideoUpload = async (file: File) => {
+
     setIsProcessingVideo(true);
+    setUploadProgress(0);
     
-    // Force a re-render to ensure state change is visible
-    setTimeout(() => {
-      console.log('🎬 Index - isProcessingVideo should now be true');
-      console.log('🎬 Index - Starting 3 second processing timeout');
-    }, 100);
-    
-    // Simulate video processing time
-    setTimeout(() => {
-      console.log('🎬 Index - Video processing timeout completed for:', file.name);
-      console.log('🎬 Index - About to set isProcessingVideo to FALSE');
+    try {
+      // Step 1: Upload video to API
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const uploadResponse = await fetch('http://localhost:8080/upload-video', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload video');
+      }
+      
+      const uploadData = await uploadResponse.json();
+      
+      setUploadProgress(50);
+      
+      // Step 2: Start video processing
+      const processResponse = await fetch('http://localhost:8080/process-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          video_path: uploadData.video_path
+        }),
+      });
+      
+      if (!processResponse.ok) {
+        throw new Error('Failed to start video processing');
+      }
+      
+      const processData = await processResponse.json();
+      
+      setUploadProgress(75);
+      
+      // Create video object with processing info
       const fileUrl = URL.createObjectURL(file);
       const newVideo: UploadedVideo = {
         id: Date.now().toString(),
         url: fileUrl,
         file,
-        timestamp: new Date()
+        timestamp: new Date(),
+        videoPath: uploadData.video_path,
+        taskId: processData.task_id,
+        processingStatus: 'in_progress'
       };
-      console.log('🎬 Index - Created new video object:', newVideo);
+      
       setUploadedVideos(prev => [...prev, newVideo]);
+      console.log('🎬 New video uploaded and set as active:', newVideo.videoPath);
       setActiveVideo(newVideo);
+      setUploadProgress(100);
+      
+    } catch (error) {
+      console.error('🎬 Error in video upload/processing:', error);
+      // Add error video to library with failed status
+      const fileUrl = URL.createObjectURL(file);
+      const errorVideo: UploadedVideo = {
+        id: Date.now().toString(),
+        url: fileUrl,
+        file,
+        timestamp: new Date(),
+        processingStatus: 'failed'
+      };
+      setUploadedVideos(prev => [...prev, errorVideo]);
+    } finally {
       setIsProcessingVideo(false);
-      console.log('🎬 Index - isProcessingVideo set to false, video added to library');
-    }, 3000); // 3 second processing time
+      setUploadProgress(0);
+    }
   };
 
   const selectVideo = (video: UploadedVideo) => {
+    console.log('🎬 User manually selected video:', video.videoPath);
     setActiveVideo(video);
     setAttachedFile(null);
   };
@@ -183,9 +314,6 @@ const Index = () => {
       }
     }
   };
-
-  console.log('🎬 Index component render - isProcessingVideo:', isProcessingVideo);
-  console.log('🎬 Index component render - uploadedVideos count:', uploadedVideos.length);
 
   return (
     <div className="min-h-screen bg-black text-white font-mono relative w-full">

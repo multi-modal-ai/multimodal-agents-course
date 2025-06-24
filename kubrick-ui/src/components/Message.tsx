@@ -7,9 +7,10 @@ interface MessageProps {
   timestamp: Date;
   fileUrl?: string;
   fileType?: 'image' | 'video';
+  clipPath?: string;
 }
 
-const Message = ({ content, isUser, timestamp, fileUrl, fileType }: MessageProps) => {
+const Message = ({ content, isUser, timestamp, fileUrl, fileType, clipPath }: MessageProps) => {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in`}>
       <div
@@ -50,6 +51,17 @@ const Message = ({ content, isUser, timestamp, fileUrl, fileType }: MessageProps
                 style={{ maxHeight: '300px' }}
               />
             ) : null}
+          </div>
+        )}
+        
+        {clipPath && (
+          <div className="mb-3">
+            <video 
+              src={`http://localhost:8080/media/${clipPath.split('/').pop()}`}
+              controls 
+              className="max-w-full h-auto rounded border border-gray-600"
+              style={{ maxHeight: '300px' }}
+            />
           </div>
         )}
         
