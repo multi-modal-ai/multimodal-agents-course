@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     AGENT_MEMORY_SIZE: int = 20
 
     # --- MCP Configuration ---
-    MCP_SERVER: str = "http://mcp-server:9090/mcp"
+    MCP_SERVER: str = "http://kubrick-mcp:9090/mcp"
 
     # --- Disable Nest Asyncio ---
     DISABLE_NEST_ASYNCIO: bool = True
