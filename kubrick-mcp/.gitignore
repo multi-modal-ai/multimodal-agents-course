@@ -2,3 +2,4 @@
 .records/
 
 *.mp4
+!notebooks/data/pass_the_butter_rick_and_morty.mp4
