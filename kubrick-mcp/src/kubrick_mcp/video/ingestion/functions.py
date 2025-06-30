@@ -12,8 +12,8 @@ def resize_image(image: pxt.type_system.Image, width: int, height: int) -> pxt.t
     if not isinstance(image, Image.Image):
         raise TypeError("Input must be a PIL Image")
 
-    resized_image = image.thumbnail((width, height))
-    return resized_image
+    image.thumbnail((width, height))
+    return image
 
 
 @pxt.udf

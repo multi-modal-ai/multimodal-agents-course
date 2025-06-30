@@ -69,10 +69,10 @@ class VideoSearchEngine:
                 - similarity (float): Similarity score
         """
         image = decode_image(image_base64)
-        sims = self.video_index.frames_view.frame.similarity(image)
+        sims = self.video_index.frames_view.resized_frame.similarity(image)
         results = self.video_index.frames_view.select(
             self.video_index.frames_view.pos_msec,
-            self.video_index.frames_view.frame,
+            self.video_index.frames_view.resized_frame,
             similarity=sims,
         ).order_by(sims, asc=False)
 

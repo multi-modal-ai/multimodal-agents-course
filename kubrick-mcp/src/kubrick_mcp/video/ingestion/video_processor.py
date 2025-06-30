@@ -118,9 +118,9 @@ class VideoProcessor:
                 audio=self.video_table.audio_extract,
                 chunk_duration_sec=settings.AUDIO_CHUNK_LENGTH,
                 overlap_sec=settings.AUDIO_OVERLAP_SECONDS,
-                min_chunk_duration_sec=settings.AUDIO_CHUNK_LENGTH - settings.AUDIO_OVERLAP_SECONDS,
+                min_chunk_duration_sec=settings.AUDIO_MIN_CHUNK_DURATION_SECONDS,
             ),
-            if_exists="ignore",
+            if_exists="replace_force",
         )
 
     def _add_audio_transcription(self):

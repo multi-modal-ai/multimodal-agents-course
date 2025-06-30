@@ -13,13 +13,14 @@ class Settings(BaseSettings):
 
     # --- OPENAI Configuration ---
     OPENAI_API_KEY: str
-    AUDIO_TRANSCRIPT_MODEL: str = "base.en"  # Whisper tiny model 37M
+    AUDIO_TRANSCRIPT_MODEL: str = "gpt-4o-mini-transcribe"  # Whisper tiny model 37M
     IMAGE_CAPTION_MODEL: str = "gpt-4o-mini"
 
     # --- Video Ingestion Configuration ---
     SPLIT_FRAMES_COUNT: int = 45
     AUDIO_CHUNK_LENGTH: int = 10
-    AUDIO_OVERLAP_SECONDS: int = 5
+    AUDIO_OVERLAP_SECONDS: int = 1
+    AUDIO_MIN_CHUNK_DURATION_SECONDS: int = 1
 
     # --- Transcription Similarity Search Configuration ---
     TRANSCRIPT_SIMILARITY_EMBD_MODEL: str = "text-embedding-3-small"
