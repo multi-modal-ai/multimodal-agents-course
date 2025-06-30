@@ -4,11 +4,11 @@ endif
 
 include .env	
 	
-infrastructure-build:
+build-kubrick:
 	docker compose build
 
-infrastructure-up:
+start-kubrick:
 	docker compose up --build -d
 
-infrastructure-stop:
+stop-kubrick:
 	docker compose stop
