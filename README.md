@@ -21,7 +21,9 @@ Tired of tutorials that just walk you through connecting an existing MCP server 
 
 Yeah, us too.
 
-That's why we built **Kubrick AI**, an MCP Multimodal Agent for video processing tasks. Yes! You read that right. Agents + Video Processing ... and MCP!
+That's why we built **Kubrick AI**, an MCP Multimodal Agent for video processing tasks. Yes! You read that right. 
+
+> 💡 Agents + Video Processing ... and MCP! 
 
 This course, is a collaboration between The Neural Maze and Neural Bits (from now on, "The Neural Bros"), and it's built for developers who want to go beyond the basics and build serious, production-ready AI Systems. In particular, you'll:
 
@@ -46,7 +48,8 @@ This course, is a collaboration between The Neural Maze and Neural Bits (from no
 * Use Opik for MCP prompt versioning
 
 * Learn how to implement custom tracing and monitoring with Opik
-> No shortcuts. No fluff. Let's learn by doing.
+
+> 🚀 No shortcuts. No fluff. Let's learn by doing. 
 
 ---
 
@@ -65,6 +68,20 @@ Specifically, you'll get to:
 After completing this course, you'll have built your own Kubrick Agent with a HAL themed spin-off, to play the role of a new set of eyes and ears:
 
 <video src="https://github.com/user-attachments/assets/ef77c2a9-1a77-4f14-b2dd-e759c3f6db72"/></video>
+
+
+---
+
+## Getting Started
+
+Kubrick is **not** a simple tutorial. So, to get this system up and running, there are a few things you need to do first.
+
+We have detailed the steps to get you started, in this [GETTING_STARTED.md](GETTING_STARTED.md) file.
+
+> 💡 Having Kubrick running is just the first step! Now that you have it up and running, it's time to actually understand how it works (see next section).
+
+
+
 
 ---
 
