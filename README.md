@@ -78,9 +78,7 @@ Kubrick is **not** a simple tutorial. So, to get this system up and running, the
 
 We have detailed the steps to get you started, in this [GETTING_STARTED.md](GETTING_STARTED.md) file.
 
-> 💡 Having Kubrick running is just the first step! Now that you have it up and running, it's time to actually understand how it works (see next section).
-
-
+> 💡 Having Kubrick running is just the first step! Now that you have it up and running, it's time to actually understand how it works (see [Course Syllabus](#-course-syllabus)).
 
 
 ---
