@@ -143,8 +143,9 @@ To get the most out of this course, we recommend:
 | Module No. | Written Lesson (Link) |  Description | Code |
 | - | -------------- | ------------ | ----------- |
 | 0 | <a href="https://theneuralmaze.substack.com/p/your-first-video-agent-multimodality"><img src="static/kubrick_ai_diagram.png" width=500></a> | Short course introduction and overview. Outlining the basic components  | N/A 
-| 1 | <a href="https://multimodalai.substack.com/p/cracking-the-code-of-multimodal-ai"><img src="kubrick-mcp/static/m1_multimodal_pipeline.webp" width=500></a> | Diving into the core components of the multimodal processing pipeline, covering video, images, text, and audio data. | [kubrick-mcp](https://github.com/multi-modal-ai/multimodal-agents-course/tree/main)
-| 2 | <a href="https://multimodalai.substack.com/p/building-mcp-servers-for-video-search"><img src="kubrick-mcp/static/m2_mcp_architecture.webp" width=500></a> | Building the Kubrick MCP Server with FastMCP. Covering MCP protocol (transport, communication), capabilities, tools, resources, and prompts. Adding Opik Integration and MCP Inspector for efficient debugging and local testing. | [kubrick-mcp](https://github.com/multi-modal-ai/multimodal-agents-course/tree/main)
+| 1 | <a href="https://multimodalai.substack.com/p/cracking-the-code-of-multimodal-ai"><img src="kubrick-mcp/static/m1_multimodal_pipeline.webp" width=500></a> | Diving into the core components of the multimodal processing pipeline, covering video, images, text, and audio data. | [kubrick-mcp](kubrick-mcp)
+| 2 | <a href="https://multimodalai.substack.com/p/building-mcp-servers-for-video-search"><img src="kubrick-mcp/static/m2_mcp_architecture.webp" width=500></a> | Building the Kubrick MCP Server with FastMCP. Covering MCP protocol (transport, communication), capabilities, tools, resources, and prompts. Adding Opik Integration and MCP Inspector for efficient debugging and local testing. | [kubrick-mcp](kubrick-mcp)
+| 3 | <a href="https://theneuralmaze.substack.com/p/how-we-built-an-mcp-agent-from-scratch"><img src="kubrick-api/static/m3_mcp_agent_from_scratch.webp" width=500></a> | Building the Kubrick MCP Agent from scratch. Memory layer implementation with Pixeltable and MCP Client with FastMCP. Understanding how to translate MCP Tools into specific provider tools (Groq) | [kubrick-api](kubrick-api)
 
 
 ## Sponsors
