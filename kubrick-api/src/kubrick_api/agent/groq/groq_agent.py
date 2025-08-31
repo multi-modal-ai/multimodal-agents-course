@@ -166,8 +166,8 @@ class GroqAgent(BaseAgent):
 
         if isinstance(followup_response, VideoClipResponseModel):
             try:
-                logger.info(f"Tracing image from trimmed clip: {followup_response.video_path}")
-                first_image_path = tools.sample_first_frame(followup_response.video_path)
+                logger.info(f"Tracing image from trimmed clip: {followup_response.clip_path}")
+                first_image_path = tools.sample_first_frame(followup_response.clip_path)
                 opik_context.update_current_trace(
                     attachments=[
                         Attachment(
