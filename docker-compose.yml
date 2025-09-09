@@ -64,3 +64,4 @@ networks:
 
 volumes:
   shared_media:
+    name: shared_media

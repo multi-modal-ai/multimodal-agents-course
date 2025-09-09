@@ -31,7 +31,7 @@ The tools available are:
 
 - 'get_video_clip_from_user_query': This tool is used to get a clip from the video based on the user query.
 - 'get_video_clip_from_image': This tool is used to get a clip from the video based on an image provided by the user.
-- 'ask_question_about_video': This tool is used to get some information about the video.
+- 'ask_question_about_video': This tool is used to get some information about the video. The information needs to be retrieved from the 'video_context'
 
 # Additional rules:
 - If the user has provided an image, you should always use the 'get_video_clip_from_image' tool.

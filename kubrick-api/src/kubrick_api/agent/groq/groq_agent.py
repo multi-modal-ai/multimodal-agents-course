@@ -86,6 +86,11 @@ class GroqAgent(BaseAgent):
             max_completion_tokens=20,
         )
         return response.tool_use
+    
+    def validate_video_clip_response(self, video_clip_response: VideoClipResponseModel, video_clip_path: str) -> VideoClipResponseModel:
+        """Validate the video clip response."""
+        video_clip_response.clip_path = video_clip_path
+        return video_clip_response
 
     async def _execute_tool_call(self, tool_call: Any, video_path: str, image_base64: str | None = None) -> str:
         """Execute a single tool call and return its response."""
@@ -134,38 +139,38 @@ class GroqAgent(BaseAgent):
         for tool_call in tool_calls:
             function_response = await self._execute_tool_call(tool_call, video_path, image_base64)
             logger.info(f"Function response: {function_response}")
-
+            
+            if tool_call.function.name == "get_video_clip_from_image":
+                tool_response = f"This is the video context. Use it to answer the user's question: {function_response}"
+            else:
+                tool_response = function_response
+            
             chat_history.append(
                 {
                     "tool_call_id": tool_call.id,
                     "role": "tool",
                     "name": tool_call.function.name,
-                    "content": function_response,
+                    "content": tool_response,
                 }
             )
 
         response_model = (
             GeneralResponseModel if tool_call.function.name == "ask_question_about_video" else VideoClipResponseModel
         )
-
-        # # TODO: Prompt need to be improved, tool-calling history + general response confuse the LLM
-        # tmp_chat = [
-        #     {
-        #         "role": "system",
-        #         "content": "Your name is Kubrick, an AI assistant. You are helpful, creative, and friendly. The context you have contains informations about what's happening in a video, you will answer the user's question in a detailed manner.",
-        #     },
-        #     {"role": "user", "content": message},
-        #     {"role": "assistant", "content": function_response},
-        # ]
-
+        
+        logger.info(f"Chat history: {chat_history}")
+        
         followup_response = self.instructor_client.chat.completions.create(
-            model=settings.GROQ_GENERAL_MODEL,
+            model=settings.GROQ_TOOL_USE_MODEL,
             messages=chat_history,
             response_model=response_model,
         )
 
         if isinstance(followup_response, VideoClipResponseModel):
             try:
+                logger.info("Validating VideoClip response")
+                self.validate_video_clip_response(followup_response, tool_response)
+                
                 logger.info(f"Tracing image from trimmed clip: {followup_response.clip_path}")
                 first_image_path = tools.sample_first_frame(followup_response.clip_path)
                 opik_context.update_current_trace(

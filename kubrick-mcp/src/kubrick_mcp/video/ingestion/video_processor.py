@@ -183,7 +183,7 @@ class VideoProcessor:
     def _add_caption_embedding_index(self):
         self.frames_view.add_embedding_index(
             column=self.frames_view.im_caption,
-            string_embed=clip.using(model_id=settings.CAPTION_SIMILARITY_EMBD_MODEL),
+            string_embed=embeddings.using(model=settings.CAPTION_SIMILARITY_EMBD_MODEL),
             if_exists="replace_force",
         )
 

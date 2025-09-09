@@ -127,10 +127,10 @@ def re_encode_video(video_path: str) -> str:
         logger.error(f"An unexpected error occurred while trying to open video {video_path}: {e}")
     finally:
         o_dir, o_fname = Path(video_path).parent, Path(video_path).name
-        reencoded_filename = f"re_{o_fname}.mp4"
+        reencoded_filename = f"re_{o_fname}"
         reencoded_video_path = Path(o_dir) / reencoded_filename
 
-        command = ["ffmpeg", "-i", video_path, "-c:v", "libx264", "-c:a", "copy", str(reencoded_video_path)]
+        command = ["ffmpeg", "-i", video_path, "-c", "copy", str(reencoded_video_path)]
 
         logger.info(f"Attempting to re-encode video using FFmpeg: {' '.join(command)}")
 

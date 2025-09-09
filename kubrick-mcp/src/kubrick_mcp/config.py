@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # --- Image Captioning Configuration ---
     IMAGE_RESIZE_WIDTH: int = 1024
     IMAGE_RESIZE_HEIGHT: int = 768
-    CAPTION_SIMILARITY_EMBD_MODEL: str = "openai/clip-vit-base-patch32"
+    CAPTION_SIMILARITY_EMBD_MODEL: str = "text-embedding-3-small"
 
     # --- Caption Similarity Search Configuration ---
     CAPTION_MODEL_PROMPT: str = "Describe what is happening in the image"
