@@ -91,7 +91,7 @@ You can add your own videos to the MCP Server by adding them to the `notebooks/d
 Just make sure to run this command to fix the video format (otherwise the server will not be able to process it):
 
 ```bash
-make fix-video-format input=notebooks/data/video.mp4 output=notebooks/data/video_fixed.mp4
+make fix-video input=notebooks/data/video.mp4 output=notebooks/data/video_fixed.mp4
 ```
 
 You can also use the video we have already added to the `notebooks/data` folder: `pass_the_butter_rick_and_morty.mp4`. 
