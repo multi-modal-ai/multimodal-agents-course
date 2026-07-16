@@ -1,6 +1,7 @@
 import click
 from fastmcp import FastMCP
 
+from kubrick_mcp.config import get_settings
 from kubrick_mcp.prompts import general_system_prompt, routing_system_prompt, tool_use_system_prompt
 from kubrick_mcp.resources import list_tables
 from kubrick_mcp.tools import (
@@ -8,6 +9,7 @@ from kubrick_mcp.tools import (
     get_video_clip_from_image,
     get_video_clip_from_user_query,
     process_video,
+    understand_video,
 )
 
 
@@ -39,6 +41,14 @@ def add_mcp_tools(mcp: FastMCP):
         fn=ask_question_about_video,
         tags={"ask", "question", "information"},
     )
+
+    if get_settings().MINIMAX_API_KEY:
+        mcp.add_tool(
+            name="understand_video",
+            description="Use this tool to answer questions that require visual or temporal understanding of a video.",
+            fn=understand_video,
+            tags={"video", "understanding", "question"},
+        )
 
 
 def add_mcp_resources(mcp: FastMCP):

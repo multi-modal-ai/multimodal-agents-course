@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,6 +16,19 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     AUDIO_TRANSCRIPT_MODEL: str = "gpt-4o-mini-transcribe"  # Whisper tiny model 37M
     IMAGE_CAPTION_MODEL: str = "gpt-4o-mini"
+
+    # --- Video Understanding Configuration ---
+    MINIMAX_API_KEY: str | None = None
+    MINIMAX_REGION: Literal["global_en", "cn_zh"] = "global_en"
+    MINIMAX_PROTOCOL: Literal["openai", "anthropic"] = "anthropic"
+    MINIMAX_VIDEO_MODEL: str = "MiniMax-M3"
+    MINIMAX_THINKING: Literal["adaptive", "disabled"] = "adaptive"
+    MINIMAX_MAX_COMPLETION_TOKENS: int = 4096
+    MINIMAX_REQUEST_TIMEOUT_SECONDS: float = 120.0
+    MINIMAX_OPENAI_BASE_URL_GLOBAL: str = "https://api.minimax.io/v1"
+    MINIMAX_ANTHROPIC_BASE_URL_GLOBAL: str = "https://api.minimax.io/anthropic"
+    MINIMAX_OPENAI_BASE_URL_CN: str = "https://api.minimaxi.com/v1"
+    MINIMAX_ANTHROPIC_BASE_URL_CN: str = "https://api.minimaxi.com/anthropic"
 
     # --- Video Ingestion Configuration ---
     SPLIT_FRAMES_COUNT: int = 45

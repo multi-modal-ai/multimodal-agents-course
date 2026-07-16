@@ -15,6 +15,7 @@ to determine if the user needs help with any of the following tasks:
 
 - Extracting a clip from a specific moment in the video
 - Retrieving information about a particular detail in the video
+- Understanding visual or temporal details that are not available in captions
 
 If the last message by the user is asking for either of these tasks, a tool should be used.
 
@@ -32,6 +33,7 @@ The tools available are:
 - 'get_video_clip_from_user_query': This tool is used to get a clip from the video based on the user query.
 - 'get_video_clip_from_image': This tool is used to get a clip from the video based on an image provided by the user.
 - 'ask_question_about_video': This tool is used to get some information about the video. The information needs to be retrieved from the 'video_context'
+- 'understand_video': This tool is used for visual or temporal questions that captions alone may not answer.
 
 # Additional rules:
 - If the user has provided an image, you should always use the 'get_video_clip_from_image' tool.
