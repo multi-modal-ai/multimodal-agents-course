@@ -68,6 +68,12 @@ OPIK_PROJECT=
 
 The `OPENAI_API_KEY` is used for image captioning and embedding. The rest are for Opik, our tool for managing and versioning Kubrick prompts (which live in the MCP server and are accessed by the API).
 
+### Optional video understanding
+
+The MCP server also exposes an `understand_video` tool for questions that need visual or temporal understanding. Configure `MINIMAX_API_KEY` together with `MINIMAX_REGION` (`global_en` or `cn_zh`) and `MINIMAX_PROTOCOL` (`anthropic` or `openai`) in `.env` to enable it.
+
+The selected region keeps both compatible base URLs available. Video files are uploaded through the selected region's OpenAI-compatible file endpoint, then referenced in the request sent through the selected protocol. The video-capable model is `MiniMax-M3`; the text-only `MiniMax-M2.7` model is not suitable for this tool.
+
 ## Running the MCP Server
 
 Now that the project is set up, you can start the MCP server.

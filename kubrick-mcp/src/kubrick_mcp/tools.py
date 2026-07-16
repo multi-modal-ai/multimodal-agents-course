@@ -1,4 +1,3 @@
-from typing import Dict
 from uuid import uuid4
 
 from loguru import logger
@@ -7,6 +6,7 @@ from kubrick_mcp.config import get_settings
 from kubrick_mcp.video.ingestion.tools import extract_video_clip
 from kubrick_mcp.video.ingestion.video_processor import VideoProcessor
 from kubrick_mcp.video.video_search_engine import VideoSearchEngine
+from kubrick_mcp.video.video_understanding import understand_video as _understand_video
 
 logger = logger.bind(name="MCPVideoTools")
 video_processor = VideoProcessor()
@@ -102,3 +102,8 @@ def ask_question_about_video(video_path: str, user_query: str) -> str:
 
     answer = "\n".join(entry["caption"] for entry in caption_info)
     return answer
+
+
+def understand_video(video_path: str, user_query: str) -> str:
+    """Answer a question using the visual and temporal content of a video."""
+    return _understand_video(video_path, user_query)
