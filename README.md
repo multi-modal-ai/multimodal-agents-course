@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/the-ai-merge-multimodal-agents-course-badge.png)](https://mseep.ai/app/the-ai-merge-multimodal-agents-course)
+
 <h1 align="center">Kubrick Course</h1>
 <p align="center">
     <img alt="logo" src="static/hal_9000.png" width=100 />
