@@ -14,7 +14,6 @@ from kubrick_api.agent.base_agent import BaseAgent
 from kubrick_api.agent.groq.groq_tool import transform_tool_definition
 from kubrick_api.agent.memory import Memory, MemoryRecord
 from kubrick_api.config import get_settings
-from kubrick_api.minimax import minimax_completion_kwargs
 from kubrick_api.models import (
     AssistantMessageResponse,
     GeneralResponseModel,
