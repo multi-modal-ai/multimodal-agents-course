@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastmcp.client import Client
 from loguru import logger
 
-from kubrick_api.agent import GroqAgent
+from kubrick_api.agent import GroqAgent, MiniMaxAgent
 from kubrick_api.config import get_settings
 from kubrick_api.models import (
     AssistantMessageResponse,
@@ -36,7 +36,8 @@ class TaskStatus(str, Enum):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.agent = GroqAgent(
+    agent_class = MiniMaxAgent if settings.LLM_PROVIDER == "minimax" else GroqAgent
+    app.state.agent = agent_class(
         name="kubrick",
         mcp_server=settings.MCP_SERVER,
         disable_tools=["process_video"],

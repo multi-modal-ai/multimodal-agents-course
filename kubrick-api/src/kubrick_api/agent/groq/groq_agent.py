@@ -14,6 +14,7 @@ from kubrick_api.agent.base_agent import BaseAgent
 from kubrick_api.agent.groq.groq_tool import transform_tool_definition
 from kubrick_api.agent.memory import Memory, MemoryRecord
 from kubrick_api.config import get_settings
+from kubrick_api.minimax import minimax_completion_kwargs
 from kubrick_api.models import (
     AssistantMessageResponse,
     GeneralResponseModel,
@@ -40,9 +41,19 @@ class GroqAgent(BaseAgent):
             memory,
             disable_tools,
         )
+        if not settings.GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY is required when LLM_PROVIDER=groq")
         self.client = Groq(api_key=settings.GROQ_API_KEY)
         self.instructor_client = instructor.from_groq(self.client, mode=instructor.Mode.JSON)
+        self.routing_model = settings.GROQ_ROUTING_MODEL
+        self.tool_use_model = settings.GROQ_TOOL_USE_MODEL
+        self.general_model = settings.GROQ_GENERAL_MODEL
+        self.reasoning_effort = None
         self.thread_id = str(uuid.uuid4())
+
+    def _completion_kwargs(self, model: str, **kwargs: Any) -> dict[str, Any]:
+        """Add provider-specific request options without changing Groq payloads."""
+        return kwargs
 
     async def _get_tools(self) -> List[Dict[str, Any]]:
         tools = await self.discover_tools()
@@ -80,10 +91,11 @@ class GroqAgent(BaseAgent):
             {"role": "user", "content": message},
         ]
         response = self.instructor_client.chat.completions.create(
-            model=settings.GROQ_ROUTING_MODEL,
+            model=self.routing_model,
             response_model=RoutingResponseModel,
             messages=messages,
             max_completion_tokens=20,
+            **self._completion_kwargs(self.routing_model),
         )
         return response.tool_use
     
@@ -120,11 +132,12 @@ class GroqAgent(BaseAgent):
 
         response = (
             self.client.chat.completions.create(
-                model=settings.GROQ_TOOL_USE_MODEL,
+                model=self.tool_use_model,
                 messages=chat_history,
                 tools=self.tools,
                 tool_choice="auto",
                 max_completion_tokens=4096,
+                **self._completion_kwargs(self.tool_use_model),
             )
             .choices[0]
             .message
@@ -161,9 +174,10 @@ class GroqAgent(BaseAgent):
         logger.info(f"Chat history: {chat_history}")
         
         followup_response = self.instructor_client.chat.completions.create(
-            model=settings.GROQ_TOOL_USE_MODEL,
+            model=self.tool_use_model,
             messages=chat_history,
             response_model=response_model,
+            **self._completion_kwargs(self.tool_use_model),
         )
 
         if isinstance(followup_response, VideoClipResponseModel):
@@ -190,9 +204,10 @@ class GroqAgent(BaseAgent):
     def _respond_general(self, message: str) -> str:
         chat_history = self._build_chat_history(self.general_system_prompt, message)
         return self.instructor_client.chat.completions.create(
-            model=settings.GROQ_GENERAL_MODEL,
+            model=self.general_model,
             messages=chat_history,
             response_model=GeneralResponseModel,
+            **self._completion_kwargs(self.general_model),
         )
 
     def _add_to_memory(self, role: str, content: str) -> None:
