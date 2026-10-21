@@ -64,11 +64,17 @@ Then open `.env` and fill in the required values:
 ```
 GROQ_API_KEY=
 
+# Set LLM_PROVIDER=minimax to use the direct MiniMax OpenAI-compatible API.
+LLM_PROVIDER=groq
+MINIMAX_API_KEY=
+MINIMAX_REGION=global_en
+MINIMAX_MODEL=MiniMax-M3.1-Flash
+
 OPIK_API_KEY=
 OPIK_PROJECT=kubrick-api
 ```
 
-The `GROQ_API_KEY` is used for the Groq models (Llama 4 Scout and Maverick). The rest are for Opik, our tool for managing everything related to Agent Observability.
+The default provider remains Groq. Set `LLM_PROVIDER=minimax` and provide `MINIMAX_API_KEY` to use the direct MiniMax endpoint. `MINIMAX_REGION=global_en` uses `https://api.minimax.io/v1`; `MINIMAX_REGION=cn_zh` uses `https://api.minimaxi.com/v1`. The ordinary MiniMax model choices are `MiniMax-M3.1-Flash` (default) and `MiniMax-M3`.
 
 ## Running the API Server
 
